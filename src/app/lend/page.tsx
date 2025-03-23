@@ -1,0 +1,256 @@
+"use client";
+
+import { useState } from "react";
+import { assets } from "@/data/marketData";
+import { Search, Info, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import AssetImage from "@/components/ui/AssetImage";
+import Link from "next/link";
+
+// Sample user data - in a real app this would come from an API
+const userLendStats = {
+  totalSupplied: 7420.25,
+  totalEarned: 182.79,
+  weightedApy: 2.47
+};
+
+export default function LendPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("apy");
+  
+  // Filter assets based on search term
+  const filteredAssets = assets.filter(asset => 
+    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Sort assets based on selected criteria
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
+    switch (sortBy) {
+      case "apy":
+        return b.apy - a.apy;
+      case "liquidity":
+        return b.liquidity - a.liquidity;
+      case "price":
+        return b.price - a.price;
+      case "alphabetical":
+        return a.name.localeCompare(b.name);
+      default:
+        return 0;
+    }
+  });
+  
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-semibold">Lending Markets</h1>
+      
+      {/* Supply Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-[var(--secondary)]">Total Supply</h3>
+            <Info className="w-4 h-4 text-[var(--secondary)]" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold">${userLendStats.totalSupplied.toLocaleString()}</span>
+          </div>
+          <p className="text-xs text-[var(--secondary)] mt-1">Across various assets</p>
+        </div>
+        
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-[var(--secondary)]">Interest Earned</h3>
+            <Info className="w-4 h-4 text-[var(--secondary)]" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold">${userLendStats.totalEarned.toLocaleString()}</span>
+          </div>
+          <p className="text-xs text-[var(--secondary)] mt-1">All-time earnings</p>
+        </div>
+        
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-[var(--secondary)]">Average APY</h3>
+            <Info className="w-4 h-4 text-[var(--secondary)]" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold">{userLendStats.weightedApy.toFixed(2)}%</span>
+          </div>
+          <p className="text-xs text-[var(--secondary)] mt-1">Weighted by supply amount</p>
+        </div>
+      </div>
+      
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="relative w-full md:w-64">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--secondary)]" size={16} />
+          <input
+            type="text"
+            placeholder="Search assets..."
+            className="w-full pl-9 pr-4 py-2 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex gap-2">
+          <button className="bracket-btn flex items-center gap-1">
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>Filter</span>
+          </button>
+          
+          <div className="relative">
+            <button className="bracket-btn flex items-center gap-1">
+              <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}</span>
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
+            <div className="absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 hidden">
+              <div className="py-1">
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
+                  onClick={() => setSortBy("apy")}
+                >
+                  APY
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
+                  onClick={() => setSortBy("liquidity")}
+                >
+                  Liquidity
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
+                  onClick={() => setSortBy("price")}
+                >
+                  Price
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
+                  onClick={() => setSortBy("alphabetical")}
+                >
+                  Alphabetical
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Assets to Supply */}
+      <div className="card overflow-hidden">
+        <div className="p-4 border-b border-[var(--border-color)]">
+          <h2 className="font-medium">Assets to Supply</h2>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-[var(--card-bg-secondary)]">
+                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">Asset</th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Liquidity</th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Supply APY</th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Collateral Factor</th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedAssets.map((asset) => (
+                <tr key={asset.id} className="border-b border-[var(--border-color)] last:border-0">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <AssetImage 
+                        logoUrl={asset.logoUrl} 
+                        symbol={asset.symbol} 
+                        size={8} 
+                      />
+                      <div>
+                        <div className="font-medium">{asset.name}</div>
+                        <div className="text-xs text-[var(--secondary)]">
+                          {asset.symbol}
+                          {asset.tokenizedSymbol && (
+                            <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
+                              {asset.tokenizedSymbol}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div>${asset.liquidity?.toLocaleString() || "0"}</div>
+                    <div className="text-xs text-[var(--secondary)]">{asset.utilizationRate ? (asset.utilizationRate * 100).toFixed(1) + "% utilized" : "0% utilized"}</div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div className="text-[var(--success)]">{asset.apy?.toFixed(2)}%</div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div>{asset.collateralFactor ? (asset.collateralFactor * 100).toFixed(0) + "%" : "0%"}</div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <Link href={`/asset/${asset.id}`} className="bracket-btn py-1">
+                      Supply
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Information Section */}
+      <div className="card p-6">
+        <h2 className="text-xl font-medium mb-4">About Supplying</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-lg font-medium mb-2">Earn Interest by Supplying</h3>
+            <p className="text-[var(--secondary)] mb-4">
+              Supply your assets to Hedgehog Protocol to earn interest on your holdings. The interest rate varies by asset and is determined by market conditions.
+            </p>
+            <ul className="space-y-2 text-[var(--secondary)]">
+              <li className="flex items-start gap-2">
+                <span className="min-w-5 min-h-5 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs mt-0.5">1</span>
+                <span>Supply your tokenized assets to the protocol</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="min-w-5 min-h-5 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs mt-0.5">2</span>
+                <span>Earn interest automatically over time</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="min-w-5 min-h-5 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs mt-0.5">3</span>
+                <span>Withdraw your assets plus earned interest anytime</span>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium mb-2">Use Assets as Collateral</h3>
+            <p className="text-[var(--secondary)] mb-4">
+              When you supply assets, you can choose to use them as collateral, which allows you to borrow other assets. Each asset has a different collateral factor.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-medium">Collateral Factor</span>
+                  <span>How much you can borrow</span>
+                </div>
+                <p className="text-xs text-[var(--secondary)]">
+                  The collateral factor determines the maximum amount you can borrow using an asset as collateral. For example, a 75% collateral factor means you can borrow up to 75% of the value of your supplied asset.
+                </p>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-medium">Utilization Rate</span>
+                  <span>Market activity</span>
+                </div>
+                <p className="text-xs text-[var(--secondary)]">
+                  The utilization rate shows how much of the supplied assets are currently being borrowed. Higher utilization generally leads to higher supply interest rates.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
