@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+// import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { CustomWalletConnect } from "../ui/CustomWalletConnect";
 
 const navItems = [
   { label: "Markets", href: "/" },
@@ -49,7 +50,7 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <ConnectButton />
+            <CustomWalletConnect />
 
             {/* Mobile menu button */}
             <button
@@ -82,7 +83,7 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-            <ConnectButton />
+            <CustomWalletConnect />
           </nav>
         </div>
       )}

@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import { Providers } from "./provider";
 import '@rainbow-me/rainbowkit/styles.css';
+import { Toaster } from "@/components/ui/toaster";
 
 
 const geistSans = Geist({
@@ -50,6 +51,7 @@ export default function RootLayout({
               </div>
             </footer>
           </div>
+          <Toaster />
         </ThemeProvider>
         </Providers>
       </body>
