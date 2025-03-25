@@ -5,6 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance 
 import { ArrowDown, DollarSign, Loader2 } from "lucide-react";
 import { ISSUER_CONTRACT_ADDRESS, SAFARICOM_TOKEN_ADDRESS } from "@/config/contracts";
 import issuerABI from "@/abi/Issuer.json";
+import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
@@ -119,18 +120,38 @@ export default function SellAssetForm({
     setIsLoading(true);
     
     try {
-      const hash = await writeContractAsync({
-        ...contractConfig,
-        args: [assetName, BigInt(Number(quantity))],
+      // First approve the contract to spend hhSAF tokens
+      const approvalHash = await writeContractAsync({
+        address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
+        abi: htsABI.abi as Abi,
+        functionName: "approve",
+        args: [
+          SAFARICOM_TOKEN_ADDRESS,
+          formatAddress(ISSUER_CONTRACT_ADDRESS),
+          BigInt(Number(quantity))
+        ],
       });
 
       toast({
-        title: "Sale initiated",
-        description: `Transaction hash: ${hash}`,
+        title: "Approval initiated",
+        description: `Please wait for approval to complete before sale...`,
       });
 
-      setAmount("");
-      setQuantity("");
+      if (approvalHash) {
+        // Then make the sale using the quantity
+        const hash = await writeContractAsync({
+          ...contractConfig,
+          args: [assetName, BigInt(Number(quantity))],
+        });
+
+        toast({
+          title: "Sale initiated",
+          description: `Transaction hash: ${hash}`,
+        });
+
+        setAmount("");
+        setQuantity("");
+      }
       
     } catch (error) {
       console.error("Sell error:", error);
@@ -142,7 +163,10 @@ export default function SellAssetForm({
     } finally {
       setIsLoading(false);
       refetchSafBalance();
-    
+      toast({
+        title: "Sale successful",
+        description: `You have successfully sold ${quantity} ${assetName} shares.`,
+      });
     }
   };
 
