@@ -6,7 +6,7 @@ export const assets = [
     tokenizedSymbol: "hhSCOM",
     description: "Safaricom PLC is a leading telecommunications company in Kenya. It provides mobile services, data, and voice solutions to consumers and businesses.",
     contractAddress: "0x000000000000000000000000000000000058162d",
-    price: 17.25,
+    price: 10.00,
     change: 0.35,
     changePercent: 2.07,
     marketCap: "691.4B KES",

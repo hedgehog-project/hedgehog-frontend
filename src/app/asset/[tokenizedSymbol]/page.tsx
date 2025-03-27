@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { assets, historicalPriceData } from "@/data/marketData";
 import { cn } from "@/lib/utils";
 import PriceChart from "@/components/assets/PriceChart";
@@ -12,17 +12,30 @@ import SellAssetForm from "@/components/trading/SellAssetForm";
 import { useAssetPrice } from "@/hooks/usePrices";
 import ShareButton from "@/components/ui/ShareButton";
 import { useState } from "react";
+import { format } from "date-fns";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  flexRender,
+} from "@tanstack/react-table";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTransactions } from "@/hooks/useTransactions";
+import TransactionSkeleton from "@/components/ui/TransactionSkeleton";
 
 export default function AssetDetailPage() {
   const params = useParams<{ tokenizedSymbol: string }>();
   const tokenizedSymbol = params.tokenizedSymbol;
   const [activeTab, setActiveTab] = useState("buy");
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   // Find the asset from our data
   const asset = assets.find((a) => a.tokenizedSymbol === tokenizedSymbol);
@@ -31,7 +44,80 @@ export default function AssetDetailPage() {
   const { data: assetPrice, isLoading } = useAssetPrice(
     asset?.contractAddress || ""
   );
-  // console.log(assetPrice);
+
+  // Fetch transactions using our new hook
+  const { data: transactions, refetch: refetchTransactions } = useTransactions(
+    asset?.contractAddress || ""
+  );
+
+  const table = useReactTable({
+    data: transactions || [],
+    columns: [
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const type = row.getValue("type") as string;
+          return (
+            <div className="flex items-center justify-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                type === 'buy' ? 'bg-[var(--success)]' : 'bg-[var(--danger)]'
+              }`}></div>
+              <span className="capitalize">{type}</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "amount",
+        header: `Amount(${asset?.tokenizedSymbol})`,
+        cell: ({ row }) => {
+          const amount = row.getValue("amount") as number;
+          return (
+            <>
+              {amount} <span className="text-xs text-[var(--secondary)]">{asset?.tokenizedSymbol}</span>
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "amount",
+        id: "value",
+        header: "Value(USDC)",
+        cell: ({ row }) => {
+          const amount = row.getValue("amount") as number;
+          const value = (asset?.price || 0) * amount;
+          return (
+            <>
+              {value.toLocaleString("en-US", {
+                maximumFractionDigits: 0,
+              })}
+              <span className="text-xs text-[var(--secondary)]">USDC</span>
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "timestamp",
+        header: "Time",
+        cell: ({ row }) => {
+          const timestamp = row.getValue("timestamp") as number;
+          const date = new Date(timestamp);
+          return (
+            <div className="text-center">
+              {format(date, 'HH:mm:ss')} UTC
+            </div>
+          );
+        },
+      },
+    ],
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    state: {
+      pagination,
+    },
+    onPaginationChange: setPagination,
+  });
 
   // If asset not found, show a message
   if (!asset) {
@@ -258,56 +344,66 @@ export default function AssetDetailPage() {
 
           <div className="card p-4 mt-2">
             <h3 className="text-sm font-medium mb-3">Recent Trades</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[var(--success)]"></div>
-                  <span>Buy</span>
-                </div>
-                <div>500 {asset.tokenizedSymbol || asset.symbol}</div>
-                <div>
-                  KES{" "}
-                  {(asset.price * 500).toLocaleString("en-US", {
-                    maximumFractionDigits: 0,
-                  })}
-                </div>
-                <div className="text-xs text-[var(--secondary)]">
-                  5 mins ago
+            {isLoading ? (
+              <TransactionSkeleton />
+            ) : transactions?.length === 0 ? (
+              <div className="text-sm text-[var(--secondary)]">No recent transactions</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id} className="text-xs text-[var(--secondary)] border-b border-[var(--border-color)]">
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} className="text-center py-2">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)]">
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id} className="text-sm">
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="text-center py-2">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                      className="p-1 rounded-md hover:bg-[var(--border-color)]/10 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm text-[var(--secondary)]">
+                      Page {table.getState().pagination.pageIndex + 1} of{" "}
+                      {table.getPageCount()}
+                    </span>
+                    <button
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                      className="p-1 rounded-md hover:bg-[var(--border-color)]/10 disabled:opacity-50"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="text-sm text-[var(--secondary)]">
+                    {table.getFilteredRowModel().rows.length} transactions
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[var(--danger)]"></div>
-                  <span>Sell</span>
-                </div>
-                <div>1200 {asset.tokenizedSymbol || asset.symbol}</div>
-                <div>
-                  KES{" "}
-                  {(asset.price * 1200).toLocaleString("en-US", {
-                    maximumFractionDigits: 0,
-                  })}
-                </div>
-                <div className="text-xs text-[var(--secondary)]">
-                  18 mins ago
-                </div>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[var(--success)]"></div>
-                  <span>Buy</span>
-                </div>
-                <div>3000 {asset.tokenizedSymbol || asset.symbol}</div>
-                <div>
-                  KES{" "}
-                  {(asset.price * 3000).toLocaleString("en-US", {
-                    maximumFractionDigits: 0,
-                  })}
-                </div>
-                <div className="text-xs text-[var(--secondary)]">
-                  42 mins ago
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -349,6 +445,8 @@ export default function AssetDetailPage() {
                   assetName={asset.name}
                   assetPrice={asset.price}
                   tokenizedSymbol={asset.tokenizedSymbol}
+                  assetContractAddress={asset.contractAddress}
+                  refetchTransactions={refetchTransactions}
                 />
               </TabsContent>
 
@@ -358,6 +456,7 @@ export default function AssetDetailPage() {
                   assetPrice={asset.price}
                   tokenizedSymbol={asset.tokenizedSymbol}
                   assetContractAddress={asset.contractAddress}
+                  refetchTransactions={refetchTransactions}
                 />
               </TabsContent>
             </div>

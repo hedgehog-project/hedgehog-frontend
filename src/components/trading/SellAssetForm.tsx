@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from "wagmi";
+import { useAccount, useWriteContract, useBalance, usePublicClient } from "wagmi";
 import { ArrowDown, DollarSign, Loader2 } from "lucide-react";
-import { ISSUER_CONTRACT_ADDRESS, SAFARICOM_TOKEN_ADDRESS } from "@/config/contracts";
+import { ISSUER_CONTRACT_ADDRESS } from "@/config/contracts";
 import issuerABI from "@/abi/Issuer.json";
 import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface SellAssetFormProps {
   assetPrice?: number;
   tokenizedSymbol?: string;
   assetContractAddress?: string;
+  refetchTransactions?: () => void;
 }
 
 interface SellAssetFormData {
@@ -29,8 +30,9 @@ export default function SellAssetForm({
   assetPrice,
   tokenizedSymbol,
   assetContractAddress,
+  refetchTransactions,
 }: SellAssetFormProps) {
-  const { register, handleSubmit, setValue, watch } = useForm<SellAssetFormData>({
+  const { handleSubmit, setValue, watch } = useForm<SellAssetFormData>({
     defaultValues: {
       amount: "",
       quantity: "",
@@ -38,10 +40,14 @@ export default function SellAssetForm({
   });
 
   const [isKes, setIsKes] = useState(false);
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { toast } = useToast();
-  const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+
+  const amount = watch("amount");
+  const quantity = watch("quantity");
 
   // Get hhSAF balance for the connected wallet
   const { data: hhSafBalance, refetch: refetchSafBalance } = useBalance({
@@ -54,18 +60,33 @@ export default function SellAssetForm({
     Number(hhSafBalance.value).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 
     "0";
   
-  const { writeContractAsync } = useWriteContract();
-  const { data: sellHash } = useWriteContract();
-  
-  const { isLoading: isWaiting } = useWaitForTransactionReceipt({
-    hash: sellHash,
-  });
-
   const contractConfig = {
     address: formatAddress(ISSUER_CONTRACT_ADDRESS),
     abi: issuerABI.abi as Abi,
     functionName: "sellAsset",
   } as const;
+
+  // Input handlers
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setValue("amount", value);
+    if (value && assetPrice) {
+      const calculatedQuantity = Number(value) / assetPrice;
+      setValue("quantity", Math.round(calculatedQuantity).toFixed(2));
+    } else {
+      setValue("quantity", "");
+    }
+  };
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setValue("quantity", value);
+    if (value && assetPrice) {
+      setValue("amount", (Number(value) * assetPrice).toFixed(0));
+    } else {
+      setValue("amount", "");
+    }
+  };
 
   // Set quantity based on percentage of max allowable amount
   const handlePercentage = (percentage: number) => {
@@ -123,35 +144,39 @@ export default function SellAssetForm({
         abi: htsABI.abi as Abi,
         functionName: "approve",
         args: [
-          SAFARICOM_TOKEN_ADDRESS,
+          assetContractAddress,
           formatAddress(ISSUER_CONTRACT_ADDRESS),
           quantityToSell
         ],
       });
 
       toast({
-        title: "Approval initiated",
-        description: `Please wait for approval to complete before sale...`,
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
       });
 
-      // Wait for the approval transaction to be confirmed
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await publicClient?.waitForTransactionReceipt({ hash: approvalHash });
 
-      if (approvalHash) {
-        // Then make the sale using the quantity
-        const hash = await writeContractAsync({
-          ...contractConfig,
-          args: [assetName, quantityToSell],
-        });
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
-        toast({
-          title: "Sale initiated",
-          description: `Transaction hash: ${hash}`,
-        });
-      }
+      // Then make the sale using the quantity
+      const sellHash = await writeContractAsync({
+        ...contractConfig,
+        args: [assetName, quantityToSell],
+      });
 
-      // Wait for the transaction to be confirmed before showing success
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      toast({
+        title: "Sale in progress",
+        description: "Waiting for sale transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
+
+      await publicClient?.waitForTransactionReceipt({ hash: sellHash });
 
       setValue("amount", "");
       setValue("quantity", "");
@@ -159,23 +184,24 @@ export default function SellAssetForm({
       toast({
         title: "Sale successful",
         description: `You have successfully sold ${data.quantity} ${assetName} shares.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
       });
       
     } catch (error) {
-      console.error("Sell error:", error);
+      console.error("Transaction error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate sale. Please try again.",
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to complete the transaction.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
       refetchSafBalance();
+      refetchTransactions?.();
     }
   };
 
-  const isSubmitting = isLoading || isWaiting;
-  const buttonDisabled = !watch("amount") || !watch("quantity") || isSubmitting || !isConnected || Number(watch("quantity")) <= 0;
+  const buttonDisabled = !amount || !quantity || isLoading || !isConnected || Number(quantity) <= 0;
 
   return (
     <div className="card">
@@ -197,11 +223,12 @@ export default function SellAssetForm({
             </div>
             <input
               id="sell-quantity"
-              type="text"
-              {...register("quantity")}
+              type="number"
+              onChange={handleQuantityChange}
+              value={quantity}
               className="flex-1 bg-transparent outline-none py-2 px-3 w-full"
               placeholder="0"
-              disabled={isSubmitting}
+              disabled={isLoading}
             />
           </div>
           
@@ -213,7 +240,7 @@ export default function SellAssetForm({
                   type="button"
                   onClick={() => handlePercentage(percent)}
                   className="text-xs px-2 py-1 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors"
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                 >
                   {percent}%
                 </button>
@@ -253,11 +280,12 @@ export default function SellAssetForm({
             </div>
             <input
               id="sell-amount"
-              type="text"
-              {...register("amount")}
+              type="number"
+              onChange={handleAmountChange}
+              value={amount}
               className="flex-1 bg-transparent outline-none py-2 px-3 w-full"
               placeholder="0"
-              disabled={isSubmitting}
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -269,7 +297,7 @@ export default function SellAssetForm({
           </div>
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
-            <span>{isKes ? 'KES' : 'USDC'} {watch("amount") ? (isKes ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 0 }) : parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 0 })) : "0"}</span>
+            <span>{isKes ? 'KES' : 'USDC'} {amount ? (isKes ? parseFloat(amount).toLocaleString('en-US', { maximumFractionDigits: 0 }) : parseFloat(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })) : "0"}</span>
           </div>
         </div>
         
@@ -282,7 +310,7 @@ export default function SellAssetForm({
           )}
           disabled={buttonDisabled}
         >
-          {isSubmitting ? (
+          {isLoading ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Processing...
             </span>
