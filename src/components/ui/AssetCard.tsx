@@ -18,7 +18,6 @@ interface AssetCardProps {
 }
 
 export default function AssetCard({
-  id,
   name,
   symbol,
   tokenizedSymbol,
@@ -28,12 +27,11 @@ export default function AssetCard({
   apy,
   logoUrl,
   collateralFactor,
-  utilizationRate,
 }: AssetCardProps) {
   const isPositive = change >= 0;
 
   return (
-    <Link href={`/asset/${id}`}>
+    <Link href={`/asset/${tokenizedSymbol}`}>
       <div className="card hover:shadow-sm transition-shadow cursor-pointer h-full p-4">
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
@@ -76,7 +74,7 @@ export default function AssetCard({
           </div>
         </div>
         
-        <div className="mt-4">
+        {/* <div className="mt-4">
           <div className="flex justify-between text-xs mb-1">
             <span className="text-[var(--secondary)]">Utilization</span>
             <span>{(utilizationRate * 100).toFixed(0)}%</span>
@@ -87,7 +85,7 @@ export default function AssetCard({
               style={{ width: `${utilizationRate * 100}%` }}
             />
           </div>
-        </div>
+        </div> */}
       </div>
     </Link>
   );

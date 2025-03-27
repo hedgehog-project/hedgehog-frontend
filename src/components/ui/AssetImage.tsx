@@ -16,11 +16,12 @@ export default function AssetImage({ logoUrl, symbol, size = 8, className = "" }
   const sizeClass = `w-${size} h-${size}`;
   
   return (
-    <div className={`relative ${sizeClass} ${className}`}>
+    <div className={`relative ${sizeClass} ${className}`} >
       <Image
         src={imgSrc}
         alt={`${symbol} logo`}
-        fill
+        width={50}
+        height={50}
         className="object-contain rounded-full"
         onError={() => {
           setImgSrc(`https://via.placeholder.com/${size * 5}?text=${symbol}`);

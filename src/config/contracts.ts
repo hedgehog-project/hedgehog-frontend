@@ -6,10 +6,10 @@ const IS_MAINNET = DEFAULT_NETWORK === "mainnet";
 
 // Contract addresses based on network
 const TESTNET_ADDRESSES = {
-  ISSUER_CONTRACT: "0x000000000000000000000000000000000058005c", // Replace with actual testnet address
-  LENDER_CONTRACT: "0x000000000000000000000000000000000058005f", // Replace with actual testnet address
-  TUSDC_TOKEN: "0x0000000000000000000000000000000000580043", // Replace with actual testnet address
-  SAFARICOM_TOKEN: "0x0000000000000000000000000000000000580066", // Replace with actual testnet address
+  ISSUER_CONTRACT: "0x000000000000000000000000000000000058162a", // Replace with actual testnet address
+  LENDER_CONTRACT: "0x0000000000000000000000000000000000581633", // Replace with actual testnet address
+  TUSDC_TOKEN: "0x00000000000000000000000000000000005815ef", // Replace with actual testnet address
+  SAFARICOM_TOKEN: "0x000000000000000000000000000000000058162d", // Replace with actual testnet address
 };
 
 const MAINNET_ADDRESSES = {

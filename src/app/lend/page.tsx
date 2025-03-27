@@ -2,9 +2,26 @@
 
 import { useState } from "react";
 import { assets } from "@/data/marketData";
-import { Search, Info, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Search, Info, ArrowUpDown, Filter } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
-import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SupplyForm from "@/components/lending/SupplyForm";
+import WithdrawForm from "@/components/lending/WithdrawForm";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+
+interface Asset {
+  id: string;
+  name: string;
+  symbol: string;
+  tokenizedSymbol?: string;
+  contractAddress?: string;
+  price: number;
+  apy: number;
+  liquidity: number;
+  collateralFactor: number;
+  utilizationRate: number;
+  logoUrl: string;
+}
 
 // Sample user data - in a real app this would come from an API
 const userLendStats = {
@@ -16,6 +33,9 @@ const userLendStats = {
 export default function LendPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("apy");
+  const [activeTab, setActiveTab] = useState("supply");
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   // Filter assets based on search term
   const filteredAssets = assets.filter(asset => 
@@ -38,6 +58,11 @@ export default function LendPage() {
         return 0;
     }
   });
+
+  const handleAssetClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsSheetOpen(true);
+  };
   
   return (
     <div className="space-y-8">
@@ -58,17 +83,6 @@ export default function LendPage() {
         
         <div className="card p-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--secondary)]">Interest Earned</h3>
-            <Info className="w-4 h-4 text-[var(--secondary)]" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">${userLendStats.totalEarned.toLocaleString()}</span>
-          </div>
-          <p className="text-xs text-[var(--secondary)] mt-1">All-time earnings</p>
-        </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-[var(--secondary)]">Average APY</h3>
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
@@ -78,7 +92,7 @@ export default function LendPage() {
           <p className="text-xs text-[var(--secondary)] mt-1">Weighted by supply amount</p>
         </div>
       </div>
-      
+
       {/* Search and Filter */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="relative w-full md:w-64">
@@ -93,13 +107,15 @@ export default function LendPage() {
         </div>
         
         <div className="flex gap-2">
-          <button className="bracket-btn flex items-center gap-1">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Filter</span>
-          </button>
+         
+
+          <button className="p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
+              <Filter className="w-4 h-4" />
+            </button>
+
           
           <div className="relative">
-            <button className="bracket-btn flex items-center gap-1">
+            <button className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
               <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}</span>
               <ArrowUpDown className="w-4 h-4" />
             </button>
@@ -154,7 +170,11 @@ export default function LendPage() {
             </thead>
             <tbody>
               {sortedAssets.map((asset) => (
-                <tr key={asset.id} className="border-b border-[var(--border-color)] last:border-0">
+                <tr 
+                  key={asset.id} 
+                  className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
+                  onClick={() => handleAssetClick(asset)}
+                >
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <AssetImage 
@@ -186,9 +206,9 @@ export default function LendPage() {
                     <div>{asset.collateralFactor ? (asset.collateralFactor * 100).toFixed(0) + "%" : "0%"}</div>
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <Link href={`/asset/${asset.id}`} className="bracket-btn py-1">
+                    <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
                       Supply
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -198,7 +218,7 @@ export default function LendPage() {
       </div>
       
       {/* Information Section */}
-      <div className="card p-6">
+      {/* <div className="card p-6">
         <h2 className="text-xl font-medium mb-4">About Supplying</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -250,7 +270,53 @@ export default function LendPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
+
+      {/* Supply/Withdraw Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>
+              {selectedAsset ? `${selectedAsset.name} (${selectedAsset.symbol})` : "Supply/Withdraw"}
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="mt-6">
+            <Tabs defaultValue="supply" value={activeTab} onValueChange={setActiveTab}>
+              <div className="border-b border-[var(--border-color)]">
+                <TabsList className="w-full h-auto p-0">
+                  <TabsTrigger 
+                    value="supply" 
+                    className={`flex-1 py-4 rounded-none text-sm font-medium ${
+                      activeTab === "supply" ? " border-b-2 border-[var(--primary)]" : ""
+                    }`}
+                  >
+                    Supply USDC
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="withdraw" 
+                    className={`flex-1 py-4 rounded-none text-sm font-medium ${
+                      activeTab === "withdraw" ? "border-b-2 border-[var(--danger)]" : ""
+                    }`}
+                  >
+                    Withdraw USDC
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <div className="py-4">
+                <TabsContent value="supply" className="mt-0 pt-0">
+                  <SupplyForm assetAddress={selectedAsset?.contractAddress} />
+                </TabsContent>
+                
+                <TabsContent value="withdraw" className="mt-0 pt-0">
+                  <WithdrawForm assetAddress={selectedAsset?.contractAddress} />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 } 

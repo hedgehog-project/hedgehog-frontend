@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils";
 import { CustomWalletConnect } from "../ui/CustomWalletConnect";
 
 const navItems = [
-  { label: "Markets", href: "/" },
-  { label: "Portfolio", href: "/portfolio" },
-  { label: "Borrow", href: "/borrow" },
-  { label: "Lend", href: "/lend" },
+  { label: "Markets", href: "/", disabled: false },
+  { label: "Portfolio", href: "/portfolio", disabled: false },
+  { label: "Lend", href: "/lend", disabled: false },
+  { label: "Borrow", href: "/borrow", disabled: false },
+  { label: "Docs", href: "/docs", disabled: true }, 
 ];
 
 export default function Header() {
@@ -39,9 +40,10 @@ export default function Header() {
                 href={item.href}
                 className={cn(
                   "text-sm font-medium transition-colors hover:text-[var(--primary)]",
-                  pathname === item.href
+                  (pathname === item.href || (item.href === "/" && pathname.startsWith("/asset")))
                     ? "text-[var(--primary)]"
-                    : "text-[var(--foreground)]"
+                    : "text-[var(--foreground)]",
+                  item.disabled && "pointer-events-none opacity-50"
                 )}
               >
                 {item.label}
@@ -49,8 +51,11 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center space-x-4">
-            <CustomWalletConnect />
+          <div className="flex items-center">
+            <div className="hidden md:flex items-center">
+              <CustomWalletConnect />
+            </div>
+            
 
             {/* Mobile menu button */}
             <button
@@ -74,9 +79,10 @@ export default function Header() {
                 href={item.href}
                 className={cn(
                   "text-sm font-medium transition-colors hover:text-[var(--primary)]",
-                  pathname === item.href
+                  (pathname === item.href || (item.href === "/" && pathname.startsWith("/asset")))
                     ? "text-[var(--primary)]"
-                    : "text-[var(--foreground)]"
+                    : "text-[var(--foreground)]",
+                  item.disabled && "pointer-events-none opacity-50"
                 )}
                 onClick={() => setMobileMenuOpen(false)}
               >

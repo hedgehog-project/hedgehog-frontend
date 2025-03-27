@@ -43,7 +43,7 @@ export const CustomWalletConnect = () => {
                   <button 
                     onClick={openConnectModal} 
                     type="button"
-                    className="bracket-btn flex items-center gap-2 py-2 px-1 text-sm font-medium"
+                    className="bg-[var(--primary)] hover:bg-[var(--primary-dark)] transition-colors rounded-md text-white flex items-center gap-2 py-2 px-4 text-sm font-medium"
                   >
                     <Wallet className="w-4 h-4" />
                     <span>Connect Wallet</span>
@@ -55,7 +55,7 @@ export const CustomWalletConnect = () => {
                   <button 
                     onClick={openChainModal} 
                     type="button" 
-                    className="bg-[var(--danger)] text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+                    className="bg-[var(--danger)]  text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
                   >
                     <span>Wrong Network</span>
                     <ChevronDown className="w-4 h-4" />

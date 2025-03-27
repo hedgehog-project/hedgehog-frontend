@@ -80,47 +80,6 @@ export default function Home() {
       
       {/* How it works section */}
       <WorksCarousel />
-
-      {/* New section after "How it Works" section */}
-      <section className="py-12 bg-gradient-to-br from-[var(--primary)]/5 to-[var(--secondary)]/5 relative">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-4">Start Trading Tokenized Assets</h2>
-            <p className="text-[var(--secondary)] mb-8">
-              Experience the future of asset ownership with Hedgehog Protocols tokenized Safaricom shares.
-              Buy, sell, and trade tokenized assets with transparency and security.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/trade/hhSAF" 
-                className="bracket-btn size-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] transition-colors"
-              >
-                Trade Safaricom Shares
-              </Link>
-              <a 
-                href="/lend" 
-                className="bracket-btn size-lg bg-transparent border border-[var(--border-color)] hover:bg-[var(--border-color)]/10 transition-colors"
-              >
-                Explore Lending Markets
-              </a>
-            </div>
-          </div>
-        </div>
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-white to-transparent"></div>
-          <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-white to-transparent"></div>
-          <div className="h-full w-full grid grid-cols-8 gap-px">
-            {Array(8).fill(0).map((_, i) => (
-              <div key={`vline-${i}`} className="h-full w-px bg-[var(--border-color)] mx-auto"></div>
-            ))}
-          </div>
-          <div className="h-full w-full grid grid-rows-8 gap-px">
-            {Array(8).fill(0).map((_, i) => (
-              <div key={`hline-${i}`} className="w-full h-px bg-[var(--border-color)] my-auto"></div>
-            ))}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

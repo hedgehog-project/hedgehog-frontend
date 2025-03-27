@@ -2,10 +2,26 @@
 
 import { useState } from "react";
 import { assets } from "@/data/marketData";
-import { Search, Info, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Search, Info, ArrowUpDown, Filter } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BorrowForm from "@/components/lending/BorrowForm";
+import RepayForm from "@/components/lending/RepayForm";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+
+interface Asset {
+  id: string;
+  name: string;
+  symbol: string;
+  tokenizedSymbol?: string;
+  price: number;
+  borrowApy: number;
+  availableToBorrow: number;
+  logoUrl: string;
+  change: number;
+  contractAddress: string;
+}
 
 // Sample user data - in a real app this would come from an API
 const userBorrowStats = {
@@ -18,6 +34,9 @@ const userBorrowStats = {
 export default function BorrowPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("available");
+  const [activeTab, setActiveTab] = useState("borrow");
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   // Filter assets based on search term
   const filteredAssets = assets.filter(asset => 
@@ -38,6 +57,11 @@ export default function BorrowPage() {
         return 0;
     }
   });
+
+  const handleAssetClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsSheetOpen(true);
+  };
   
   return (
     <div className="space-y-8">
@@ -101,7 +125,7 @@ export default function BorrowPage() {
           <p className="text-xs text-[var(--secondary)] mt-1">Supply APY - Borrow APY</p>
         </div>
       </div>
-      
+
       {/* Search and Filter */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="relative w-full md:w-64">
@@ -116,13 +140,12 @@ export default function BorrowPage() {
         </div>
         
         <div className="flex gap-2">
-          <button className="bracket-btn flex items-center gap-1">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Filter</span>
+          <button className="p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
+            <Filter className="w-4 h-4" />
           </button>
           
           <div className="relative">
-            <button className="bracket-btn flex items-center gap-1">
+            <button className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
               <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}</span>
               <ArrowUpDown className="w-4 h-4" />
             </button>
@@ -171,7 +194,11 @@ export default function BorrowPage() {
             </thead>
             <tbody>
               {sortedAssets.map((asset) => (
-                <tr key={asset.id} className="border-b border-[var(--border-color)] last:border-0">
+                <tr 
+                  key={asset.id} 
+                  className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
+                  onClick={() => handleAssetClick(asset)}
+                >
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <AssetImage 
@@ -209,9 +236,9 @@ export default function BorrowPage() {
                     </div>
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <Link href={`/asset/${asset.id}`} className="bracket-btn py-1">
+                    <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white">
                       Borrow
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -221,7 +248,7 @@ export default function BorrowPage() {
       </div>
       
       {/* Information Section */}
-      <div className="card p-6">
+      {/* <div className="card p-6">
         <h2 className="text-xl font-medium mb-4">About Borrowing</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -249,7 +276,7 @@ export default function BorrowPage() {
           <div>
             <h3 className="text-lg font-medium mb-2">Risk Management</h3>
             <p className="text-[var(--secondary)] mb-4">
-              When borrowing, it's important to maintain a healthy position to avoid liquidation. The following factors affect your borrowing risk:
+              When borrowing, it&apos;s important to maintain a healthy position to avoid liquidation. The following factors affect your borrowing risk:
             </p>
             <div className="space-y-3">
               <div>
@@ -267,7 +294,7 @@ export default function BorrowPage() {
                   <span>How much you can borrow</span>
                 </div>
                 <p className="text-xs text-[var(--secondary)]">
-                  Your borrow limit is determined by the value of your collateral and each asset's collateral factor.
+                  Your borrow limit is determined by the value of your collateral and each asset&apos;s collateral factor.
                 </p>
               </div>
               <div>
@@ -282,7 +309,59 @@ export default function BorrowPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
+
+      {/* Borrow/Repay Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>
+              {selectedAsset ? `${selectedAsset.name} (${selectedAsset.symbol})` : "Borrow/Repay"}
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="mt-6">
+            <Tabs defaultValue="borrow" value={activeTab} onValueChange={setActiveTab}>
+              <div className="border-b border-[var(--border-color)]">
+                <TabsList className="w-full h-auto p-0">
+                  <TabsTrigger 
+                    value="borrow" 
+                    className={`flex-1 py-4 rounded-none text-sm font-medium ${
+                      activeTab === "borrow" ? "border-b-2 border-[var(--primary)]" : ""
+                    }`}
+                  >
+                    Borrow {selectedAsset?.symbol}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="repay" 
+                    className={`flex-1 py-4 rounded-none text-sm font-medium ${
+                      activeTab === "repay" ? "border-b-2 border-[var(--danger)]" : ""
+                    }`}
+                  >
+                    Repay {selectedAsset?.symbol}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <div className="py-4">
+                <TabsContent value="borrow" className="mt-0 pt-0">
+                  <BorrowForm 
+                    borrowLimit={userBorrowStats.borrowLimit - userBorrowStats.totalBorrowed} 
+                    assetAddress={selectedAsset?.contractAddress}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="repay" className="mt-0 pt-0">
+                  <RepayForm 
+                    outstandingDebt={userBorrowStats.totalBorrowed}
+                    assetAddress={selectedAsset?.contractAddress}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 } 
