@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
 import { Abi } from "viem";
 import htsABI from "@/abi/HederaTokenService.json";
+import { adminClient, adminAccount } from "@/lib/admin";
 
 interface BuyAssetFormProps {
   assetName?: string;
@@ -30,6 +31,7 @@ export default function BuyAssetForm({
   assetName,
   assetPrice,
   tokenizedSymbol,
+  assetContractAddress,
   refetchTransactions,
 }: BuyAssetFormProps) {
   const { handleSubmit, setValue, watch } = useForm<BuyAssetFormData>({
@@ -126,6 +128,92 @@ export default function BuyAssetForm({
     try {
       const amountInTusdc = BigInt(Math.floor(Number(data.amount) * 1e6));
 
+      if (!assetContractAddress) {
+        toast({
+          title: "Error",
+          description: "Asset contract address is not defined.",
+          className: "bg-red-500 text-white border-none",
+        });
+        return;
+      }
+
+      // First, associate the token with the user's account
+      const associateHash = await writeContractAsync({
+        address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
+        abi: htsABI.abi as Abi,
+        functionName: "associateTokens",
+        args: [address, [formatAddress(assetContractAddress)]],
+      });
+
+      toast({
+        title: "Token association in progress",
+        description: "Waiting for token association to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
+
+      await publicClient?.waitForTransactionReceipt({ hash: associateHash });
+
+      toast({
+        title: "Token association successful",
+        description: "Token has been associated with your account.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
+
+      // Grant KYC to the user using admin client
+      if (!publicClient) {
+        toast({
+          title: "Error",
+          description: "Failed to initialize public client.",
+          className: "bg-red-500 text-white border-none",
+        });
+        return;
+      }
+
+      console.log('Admin account address:', adminAccount.address);
+      console.log('Expected admin address:', process.env.NEXT_PUBLIC_ADMIN_ADDRESS);
+      console.log('Admin account details:', {
+        address: adminAccount.address,
+        publicKey: adminAccount.publicKey,
+        type: adminAccount.type
+      });
+
+      try {
+        const { request } = await publicClient.simulateContract({
+          address: formatAddress(ISSUER_CONTRACT_ADDRESS),
+          abi: issuerABI.abi as Abi,
+          functionName: "grantKYC",
+          args: [assetName, address],
+          account: adminAccount.address,
+        });
+
+        console.log('Simulation successful, proceeding with KYC grant...');
+        console.log('Transaction will be signed by:', adminAccount.address);
+
+        const grantKycHash = await adminClient.writeContract(request);
+
+        toast({
+          title: "KYC Grant in progress",
+          description: "Waiting for KYC grant to be confirmed...",
+          className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+        });
+
+        await publicClient?.waitForTransactionReceipt({ hash: grantKycHash });
+
+        toast({
+          title: "KYC Grant successful",
+          description: "KYC has been granted to your account.",
+          className: "bg-green-500/50 border-green-500 text-white border-none",
+        });
+      } catch (error) {
+        console.error('KYC Grant error:', error);
+        toast({
+          title: "KYC Grant Failed",
+          description: error instanceof Error ? error.message : "Failed to grant KYC. Please try again.",
+          className: "bg-red-500 text-white border-none",
+        });
+        return;
+      }
+
       // Approval transaction
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
@@ -134,7 +222,7 @@ export default function BuyAssetForm({
         args: [TUSDC_TOKEN_ADDRESS, formatAddress(ISSUER_CONTRACT_ADDRESS), amountInTusdc],
       });
 
-       toast({
+      toast({
         title: "Approval in progress",
         description: "Waiting for approval transaction to be confirmed...",
         className: "bg-yellow-500/50 border-yellow-500 text-white border-none",

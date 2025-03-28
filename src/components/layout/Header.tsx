@@ -14,6 +14,7 @@ const navItems = [
   { label: "Lend", href: "/lend", disabled: false },
   { label: "Borrow", href: "/borrow", disabled: false },
   { label: "Docs", href: "https://hedgehog-2.gitbook.io/hedgehog", disabled: false }, 
+  { label: "Faucet", href: "/faucet", disabled: false },
 ];
 
 export default function Header() {

@@ -24,6 +24,7 @@ import {
   useTotalProvidedLiquidityByAccount,
 } from "@/hooks/useProvidedLiquidity";
 import Image from "next/image";
+import { useLoans, useTotalLoanAmount } from "@/hooks/useTotalLoanAmount";
 
 // Constants
 // const USD_TO_KES_RATE = 129;
@@ -72,6 +73,17 @@ interface SupplyPosition {
     apy: number;
   };
   valueUSD: number;
+}
+
+interface Loan {
+  id: string;
+  account: string;
+  collateralAsset: string;
+  loanAmountUSDC: number;
+  collateralAmount: number;
+  liquidationPrice: number;
+  repaymentAmount: number;
+  timestamp: number;
 }
 
 export default function PortfolioPage() {
@@ -178,6 +190,14 @@ export default function PortfolioPage() {
 
   console.log(marketsProvidedLiquidityData);
 
+  const { data: loansData } = useLoans(address as `0x${string}`);
+
+  console.log(loansData);
+
+  const { data: totalLoanAmount, isLoading: isTotalLoanAmountLoading } = useTotalLoanAmount(address as `0x${string}`);
+
+  console.log(totalLoanAmount);
+
   // Find the assets for the positions and combine amounts for same asset
   const supplyAssets =
     marketsProvidedLiquidityData?.reduce((acc, position) => {
@@ -217,6 +237,11 @@ export default function PortfolioPage() {
     return { ...position, asset };
   });
 
+  const getUniqueCollateralAssetsCount = (loans: Loan[] | undefined) => {
+    if (!loans) return 0;
+    return new Set(loans.map(loan => loan.collateralAsset)).size;
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Your Portfolio</h1>
@@ -238,11 +263,11 @@ export default function PortfolioPage() {
                     <div className="text-lg font-semibold">
                       $ {/* ${formatUSDC(totalPortfolioValue)} */}
                       {isTotalProvidedLiquidityLoading ? (
-                        <p>0.00</p>
+                        <p>$ 0.00</p>
                       ) : totalProvidedLiquidity ? (
                         formatUSDC(totalProvidedLiquidity)
                       ) : (
-                        "0.00"
+                        "$ 0.00"
                       )}
                     </div>
                     <div className="text-xs text-[var(--success)]">+2.4%</div>
@@ -264,13 +289,19 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      ${formatUSDC(userPortfolio.totalDebt)}
+                      {isTotalLoanAmountLoading ? (
+                        <p>$ 0.00</p>
+                      ) : totalLoanAmount ? (
+                        "$ " + formatUSDC(totalLoanAmount)
+                      ) : (
+                        "$ 0.00"
+                      )}
                     </div>
                     <div className="text-xs text-[var(--danger)]">-0.7%</div>
                   </div>
                 </div>
                 <p className="text-sm text-[var(--secondary)]">
-                  Across {userPortfolio.borrowPositions.length} assets
+                  Across {getUniqueCollateralAssetsCount(loansData)} assets
                 </p>
               </div>
 
@@ -296,9 +327,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-[var(--secondary)]">
-                  Net Worth: ${formatUSDC(userPortfolio.netWorth)}
-                </p>
+              
               </div>
             </div>
           </div>
@@ -311,7 +340,7 @@ export default function PortfolioPage() {
 
             {/* TUSDC Balance at the top */}
             <div className="mb-4 pb-4 border-b border-[var(--border-color)]">
-              <div className="p-4 bg-[var(--border-color)]/10 rounded-lg">
+              <div className="p-4 bg-[var(--border-color)]/30 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-[var(--primary)]" />
