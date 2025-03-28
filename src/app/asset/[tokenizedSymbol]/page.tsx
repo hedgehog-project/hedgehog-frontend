@@ -99,13 +99,14 @@ export default function AssetDetailPage() {
       },
       {
         accessorKey: "timestamp",
-        header: "Time",
+        header: "Time(UTC)",
         cell: ({ row }) => {
           const timestamp = row.getValue("timestamp") as number;
           const date = new Date(timestamp);
           return (
             <div className="text-center">
-              {format(date, 'HH:mm:ss')} UTC
+              {format(date, 'MMM d, HH:mm:ss')} <span className="text-xs text-[var(--secondary)]">UTC</span>
+
             </div>
           );
         },

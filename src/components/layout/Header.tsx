@@ -13,7 +13,7 @@ const navItems = [
   { label: "Portfolio", href: "/portfolio", disabled: false },
   { label: "Lend", href: "/lend", disabled: false },
   { label: "Borrow", href: "/borrow", disabled: false },
-  { label: "Docs", href: "/docs", disabled: true }, 
+  { label: "Docs", href: "https://hedgehog-2.gitbook.io/hedgehog", disabled: false }, 
 ];
 
 export default function Header() {
@@ -45,6 +45,7 @@ export default function Header() {
                     : "text-[var(--foreground)]",
                   item.disabled && "pointer-events-none opacity-50"
                 )}
+                {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
                 {item.label}
               </Link>
@@ -85,6 +86,7 @@ export default function Header() {
                   item.disabled && "pointer-events-none opacity-50"
                 )}
                 onClick={() => setMobileMenuOpen(false)}
+                {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
                 {item.label}
               </Link>

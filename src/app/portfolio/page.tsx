@@ -10,35 +10,80 @@ import { Loader2 } from "lucide-react";
 import { assets } from "@/data/marketData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import WithdrawForm from "@/components/lending/WithdrawForm";
 import RepayForm from "@/components/lending/RepayForm";
+import { formatUSDC } from "@/lib/utils";
+import {
+  useMarketsProvidedLiquidityByAccount,
+  useTotalProvidedLiquidityByAccount,
+} from "@/hooks/useProvidedLiquidity";
+import Image from "next/image";
 
 // Constants
-const USD_TO_KES_RATE = 129;
+// const USD_TO_KES_RATE = 129;
 
 // Sample user data - in a real app this would come from an API
 const userPortfolio = {
-  totalValue: 4875600,
-  totalDebt: 2016850,
-  netWorth: 2858750,
+  totalValue: 48756, // in USDC
+  totalDebt: 20168.5, // in USDC
+  netWorth: 28587.5, // in USDC
   healthFactor: 3.65,
   supplyPositions: [
-    { assetId: "scom", amount: 85000, valueUSD: 1466250, apy: 4.2 },
-    { assetId: "eqty", amount: 32500, valueUSD: 1483625, apy: 5.1 },
+    {
+      assetId: "scom",
+      contractAddress: "0x000000000000000000000000000000000058162d",
+      amount: 85000,
+      valueUSD: 14662.5,
+      apy: 4.2,
+    },
+    {
+      assetId: "eqty",
+      contractAddress: "0x0000000000000000000000000000000000582c35",
+      amount: 32500,
+      valueUSD: 14836.25,
+      apy: 5.1,
+    },
   ],
   borrowPositions: [
-    { assetId: "absa", amount: 120000, valueUSD: 1494000, apy: 3.6 },
-    { assetId: "eabl", amount: 3425, valueUSD: 522968, apy: 4.1 },
+    { assetId: "absa", amount: 120000, valueUSD: 14940.0, apy: 3.6 },
+    { assetId: "eabl", amount: 3425, valueUSD: 5229.68, apy: 4.1 },
   ],
 };
 
+interface SupplyPosition {
+  id: string;
+  assetAddress: string;
+  amount: number;
+  account: string;
+  timestamp: number;
+  asset?: {
+    contractAddress: string;
+    name: string;
+    symbol: string;
+    logoUrl: string;
+    tokenizedSymbol?: string;
+    price: number;
+    apy: number;
+  };
+  valueUSD: number;
+}
+
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("supply");
-  const [showKesValue, setShowKesValue] = useState(false);
+  // const [showKesValue, setShowKesValue] = useState(false);
   const [isWithdrawSheetOpen, setIsWithdrawSheetOpen] = useState(false);
   const [isRepaySheetOpen, setIsRepaySheetOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<{ contractAddress: string; name: string; symbol: string } | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<{
+    contractAddress: string;
+    name: string;
+    symbol: string;
+  } | null>(null);
   const { address } = useAccount();
   const router = useRouter();
 
@@ -107,13 +152,13 @@ export default function PortfolioPage() {
       })
     : "0.00";
 
-  // Calculate TUSDC value in KES
-  const tusdcValueInKes = tusdcBalance
-    ? ((Number(tusdcBalance.value) / 1e6) * USD_TO_KES_RATE).toLocaleString(
-        undefined,
-        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-      )
-    : "0.00";
+  // // Calculate TUSDC value in KES
+  // const tusdcValueInKes = tusdcBalance
+  //   ? ((Number(tusdcBalance.value) / 1e6) * USD_TO_KES_RATE).toLocaleString(
+  //       undefined,
+  //       { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+  //     )
+  //   : "0.00";
 
   // Format asset balances
   const formatAssetBalance = (balance: bigint) => {
@@ -123,17 +168,49 @@ export default function PortfolioPage() {
     });
   };
 
-  // Calculate total portfolio value in KES
-  const totalPortfolioValue = assetsWithBalance.reduce((total, asset) => {
-    const balance = Number(asset.balance);
-    return total + balance * asset.price;
-  }, 0);
+  const {
+    data: totalProvidedLiquidity,
+    isLoading: isTotalProvidedLiquidityLoading,
+  } = useTotalProvidedLiquidityByAccount(address as `0x${string}`);
 
-  // Find the assets for the positions
-  const supplyAssets = userPortfolio.supplyPositions.map((position) => {
-    const asset = assets.find((a) => a.id === position.assetId);
-    return { ...position, asset };
-  });
+  const { data: marketsProvidedLiquidityData } =
+    useMarketsProvidedLiquidityByAccount(address as `0x${string}`);
+
+  console.log(marketsProvidedLiquidityData);
+
+  // Find the assets for the positions and combine amounts for same asset
+  const supplyAssets =
+    marketsProvidedLiquidityData?.reduce((acc, position) => {
+      const asset = assets?.find((a) => a.contractAddress === position.asset);
+      if (!asset) return acc;
+
+      // Find if we already have this asset in our accumulator
+      const existingPosition = acc.find(
+        (p) => p.assetAddress === position.asset
+      );
+
+      if (existingPosition) {
+        // Update existing position with combined amount
+        existingPosition.amount += position.amount;
+        existingPosition.valueUSD =
+          (existingPosition.amount / Math.pow(10, 6)) * asset.price;
+      } else {
+        // Add new position
+        acc.push({
+          id: position.id,
+          assetAddress: position.asset,
+          amount: position.amount,
+          account: position.account,
+          timestamp: position.timestamp,
+          asset,
+          valueUSD: (position.amount / Math.pow(10, 6)) * asset.price,
+        });
+      }
+
+      return acc;
+    }, [] as SupplyPosition[]) || [];
+
+  console.log(supplyAssets);
 
   const borrowAssets = userPortfolio.borrowPositions.map((position) => {
     const asset = assets.find((a) => a.id === position.assetId);
@@ -155,19 +232,28 @@ export default function PortfolioPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-[var(--success)]" />
-                    <span className="font-medium">Total Assets Value</span>
+                    <span className="font-medium">Total Supply Value</span>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      KES {totalPortfolioValue.toLocaleString()}
+                      $ {/* ${formatUSDC(totalPortfolioValue)} */}
+                      {isTotalProvidedLiquidityLoading ? (
+                        <p>0.00</p>
+                      ) : totalProvidedLiquidity ? (
+                        formatUSDC(totalProvidedLiquidity)
+                      ) : (
+                        "0.00"
+                      )}
                     </div>
                     <div className="text-xs text-[var(--success)]">+2.4%</div>
                   </div>
                 </div>
-                <p className="text-sm text-[var(--secondary)]">
-                  Across {assetsWithBalance.length} asset
-                  {assetsWithBalance.length > 1 ? "s" : ""}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-[var(--secondary)]">
+                    Across {assetsWithBalance.length} asset
+                    {assetsWithBalance.length > 1 ? "s" : ""}
+                  </p>
+                </div>
               </div>
 
               <div className="p-4 bg-[var(--border-color)]/10 rounded-lg">
@@ -178,7 +264,7 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      KES {userPortfolio.totalDebt.toLocaleString()}
+                      ${formatUSDC(userPortfolio.totalDebt)}
                     </div>
                     <div className="text-xs text-[var(--danger)]">-0.7%</div>
                   </div>
@@ -211,7 +297,7 @@ export default function PortfolioPage() {
                   </div>
                 </div>
                 <p className="text-sm text-[var(--secondary)]">
-                  Net Worth: KES {userPortfolio.netWorth.toLocaleString()}
+                  Net Worth: ${formatUSDC(userPortfolio.netWorth)}
                 </p>
               </div>
             </div>
@@ -235,25 +321,9 @@ export default function PortfolioPage() {
                     {tusdcBalance === undefined ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <>
-                        <span className="text-lg font-semibold">
-                          {showKesValue
-                            ? `KES ${tusdcValueInKes}`
-                            : `$${formattedTusdcBalance}`}
-                        </span>
-                        <button
-                          onClick={() => setShowKesValue(!showKesValue)}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-[var(--border-color)]/20 hover:bg-[var(--border-color)]/30 transition-colors border-2 border-[var(--border-color)]/50"
-                        >
-                          <span className="text-[var(--secondary)]">
-                            View in
-                          </span>
-                          <span className="font-medium">
-                            {showKesValue ? "USD" : "KES"}
-                          </span>
-                          <span className="text-[var(--secondary)]">→</span>
-                        </button>
-                      </>
+                      <span className="text-lg font-semibold">
+                        ${formattedTusdcBalance}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -262,15 +332,7 @@ export default function PortfolioPage() {
                     <p className="text-sm text-[var(--secondary)]">
                       Available for trading
                     </p>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--border-color)]/10 text-[var(--secondary)]">
-                      {showKesValue
-                        ? `$${formattedTusdcBalance} USD`
-                        : `KES ${tusdcValueInKes}`}
-                    </span>
                   </div>
-                  <p className="text-xs text-[var(--secondary)]">
-                    Rate: 1 USD = {USD_TO_KES_RATE} KES
-                  </p>
                 </div>
               </div>
             </div>
@@ -298,13 +360,12 @@ export default function PortfolioPage() {
                         {formatAssetBalance(asset.balance)}
                       </div>
                       <div className="text-xs text-[var(--success)]">
-                        KES{" "}
-                        {(Number(asset.balance) * asset.price).toLocaleString()}
+                        ${formatUSDC(Number(asset.balance) * asset.price)}
                       </div>
                     </div>
                   </div>
                   <p className="text-sm text-[var(--secondary)]">
-                    Price: KES {asset.price.toLocaleString()}
+                    Price: ${formatUSDC(asset.price)}
                   </p>
                 </div>
               ))}
@@ -362,82 +423,58 @@ export default function PortfolioPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-[var(--card-bg-secondary)]">
-                      <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                        Asset
-                      </th>
-                      <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                        Balance
-                      </th>
-                      <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                        Value (KES)
-                      </th>
-                      <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                        APY
-                      </th>
-                      <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                        Actions
-                      </th>
+                    <tr className="border-b border-[var(--border-color)]">
+                      <th className="px-4 py-4 text-left">Asset</th>
+                      <th className="px-4 py-4 text-right">Amount</th>
+                      <th className="px-4 py-4 text-right">Value (USD)</th>
+                      <th className="px-4 py-4 text-right">APY</th>
                     </tr>
                   </thead>
                   <tbody>
                     {supplyAssets.map((position) => (
                       <tr
-                        key={position.assetId}
+                        key={position.id}
                         className="border-b border-[var(--border-color)] last:border-0"
                       >
                         <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <AssetImage
-                              logoUrl={position.asset?.logoUrl || ""}
-                              symbol={position.asset?.symbol || ""}
-                              size={8}
+                          <div className="flex items-center gap-2">
+                            <Image
+                              src={position.asset?.logoUrl || ""}
+                              alt={position.asset?.symbol || ""}
+                              width={24}
+                              height={24}
+                              className="rounded-full"
                             />
-                            <div>
-                              <div className="font-medium">
-                                {position.asset?.name}
-                              </div>
-                              <div className="text-xs text-[var(--secondary)]">
-                                {position.asset?.symbol}
-                                {position.asset?.tokenizedSymbol && (
-                                  <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
-                                    {position.asset.tokenizedSymbol}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                            <span>{position.asset?.symbol || ""}</span>
+                            <span>{position.asset?.tokenizedSymbol || ""}</span>
                           </div>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <div>{position.amount.toLocaleString()}</div>
-                          <div className="text-xs text-[var(--secondary)]">
-                            {position.asset?.symbol}
-                          </div>
+                          {formatUSDC(position.amount / Math.pow(10, 6))}
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <div>KES {position.valueUSD.toLocaleString()}</div>
+                          {formatUSDC(position.valueUSD)}
                         </td>
-                        <td className="px-4 py-4 text-right">
-                          <div className="text-[var(--success)]">
-                            {position.apy.toFixed(1)}%
-                          </div>
+                        <td className="px-4 py-4 text-right text-[var(--primary)]">
+                          {position.asset?.apy
+                            ? `${(position.asset.apy).toFixed(2)}%`
+                            : "N/A"}
                         </td>
+                        {/* Add a button to withdraw */}
                         <td className="px-4 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button 
-                              onClick={() => {
-                                setSelectedAsset({
-                                  contractAddress: position.asset?.contractAddress || "",
-                                  name: position.asset?.name || "",
-                                  symbol: position.asset?.symbol || ""
-                                });
-                                setIsWithdrawSheetOpen(true);
-                              }}
-                              className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white"
-                            >
-                              Withdraw
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedAsset({
+                                contractAddress: position.asset?.contractAddress || "",
+                                name: position.asset?.name || "",
+                                symbol: position.asset?.symbol || "",
+                              });
+                              setIsWithdrawSheetOpen(true);
+                            }}
+                            className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white"
+                          >
+                            Withdraw
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -473,7 +510,7 @@ export default function PortfolioPage() {
                           Debt
                         </th>
                         <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                          Value (KES)
+                          Value (USD)
                         </th>
                         <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
                           APY
@@ -512,13 +549,13 @@ export default function PortfolioPage() {
                             </div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div>{position.amount.toLocaleString()}</div>
+                            <div>${position.amount.toLocaleString()}</div>
                             <div className="text-xs text-[var(--secondary)]">
                               {position.asset?.symbol}
                             </div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div>KES {position.valueUSD.toLocaleString()}</div>
+                            <div>${position.valueUSD.toLocaleString()}</div>
                           </td>
                           <td className="px-4 py-4 text-right">
                             <div className="text-[var(--danger)]">
@@ -527,12 +564,13 @@ export default function PortfolioPage() {
                           </td>
                           <td className="px-4 py-4 text-right">
                             <div className="flex justify-end gap-2">
-                              <button 
+                              <button
                                 onClick={() => {
                                   setSelectedAsset({
-                                    contractAddress: position.asset?.contractAddress || "",
+                                    contractAddress:
+                                      position.asset?.contractAddress || "",
                                     name: position.asset?.name || "",
-                                    symbol: position.asset?.symbol || ""
+                                    symbol: position.asset?.symbol || "",
                                   });
                                   setIsRepaySheetOpen(true);
                                 }}
@@ -558,10 +596,12 @@ export default function PortfolioPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>
-              {selectedAsset ? `Withdraw ${selectedAsset.name} (${selectedAsset.symbol})` : "Withdraw"}
+              {selectedAsset
+                ? `Withdraw ${selectedAsset.name} (${selectedAsset.symbol})`
+                : "Withdraw"}
             </SheetTitle>
           </SheetHeader>
-          
+
           <div className="mt-6">
             <WithdrawForm assetAddress={selectedAsset?.contractAddress} />
           </div>
@@ -573,14 +613,20 @@ export default function PortfolioPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>
-              {selectedAsset ? `Repay ${selectedAsset.name} (${selectedAsset.symbol})` : "Repay"}
+              {selectedAsset
+                ? `Repay ${selectedAsset.name} (${selectedAsset.symbol})`
+                : "Repay"}
             </SheetTitle>
           </SheetHeader>
-          
+
           <div className="mt-6">
-            <RepayForm 
+            <RepayForm
               assetAddress={selectedAsset?.contractAddress}
-              outstandingDebt={borrowAssets.find(b => b.assetId === selectedAsset?.symbol.toLowerCase())?.valueUSD || 0}
+              outstandingDebt={
+                borrowAssets.find(
+                  (b) => b.assetId === selectedAsset?.symbol.toLowerCase()
+                )?.valueUSD || 0
+              }
             />
           </div>
         </SheetContent>

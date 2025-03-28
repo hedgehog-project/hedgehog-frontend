@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SupplyForm from "@/components/lending/SupplyForm";
 import WithdrawForm from "@/components/lending/WithdrawForm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useProvidedLiquidity, useTotalProvidedLiquidity } from "@/hooks/useProvidedLiquidity";
+import { formatUSDC } from "@/lib/utils";
 
 interface Asset {
   id: string;
@@ -59,11 +61,28 @@ export default function LendPage() {
     }
   });
 
+  // Get all asset addresses
+  const assetAddresses = sortedAssets
+    .map(asset => asset.contractAddress)
+    .filter((address): address is string => !!address);
+
+  // Fetch provided liquidity for all assets
+  const { data: providedLiquidityData } = useProvidedLiquidity(assetAddresses);
+
+  // Get total provided liquidity
+  const { data: totalProvidedLiquidity = 0 } = useTotalProvidedLiquidity();
+
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsSheetOpen(true);
   };
-  
+
+  // Helper function to get total provided liquidity
+  const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
+    if (!providedLiquidityData?.[assetTokenAddress]) return 0;
+    return providedLiquidityData[assetTokenAddress].reduce((sum, item) => sum + item.amount, 0);
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Lending Markets</h1>
@@ -76,7 +95,9 @@ export default function LendPage() {
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">${userLendStats.totalSupplied.toLocaleString()}</span>
+            <span className="text-2xl font-semibold">
+              $ {formatUSDC(totalProvidedLiquidity)} 
+            </span>
           </div>
           <p className="text-xs text-[var(--secondary)] mt-1">Across various assets</p>
         </div>
@@ -169,49 +190,58 @@ export default function LendPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedAssets.map((asset) => (
-                <tr 
-                  key={asset.id} 
-                  className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
-                  onClick={() => handleAssetClick(asset)}
-                >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <AssetImage 
-                        logoUrl={asset.logoUrl} 
-                        symbol={asset.symbol} 
-                        size={8} 
-                      />
-                      <div>
-                        <div className="font-medium">{asset.name}</div>
-                        <div className="text-xs text-[var(--secondary)]">
-                          {asset.symbol}
-                          {asset.tokenizedSymbol && (
-                            <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
-                              {asset.tokenizedSymbol}
-                            </span>
-                          )}
+              {sortedAssets.map((asset) => {
+                const providedLiquidity = getTotalProvidedLiquidity(asset.contractAddress || "");
+                return (
+                  <tr 
+                    key={asset.id} 
+                    className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
+                    onClick={() => handleAssetClick(asset)}
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <AssetImage 
+                          logoUrl={asset.logoUrl} 
+                          symbol={asset.symbol} 
+                          size={8} 
+                        />
+                        <div>
+                          <div className="font-medium">{asset.name}</div>
+                          <div className="text-xs text-[var(--secondary)]">
+                            {asset.symbol}
+                            {asset.tokenizedSymbol && (
+                              <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
+                                {asset.tokenizedSymbol}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div>${asset.liquidity?.toLocaleString() || "0"}</div>
-                    <div className="text-xs text-[var(--secondary)]">{asset.utilizationRate ? (asset.utilizationRate * 100).toFixed(1) + "% utilized" : "0% utilized"}</div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div className="text-[var(--success)]">{asset.apy?.toFixed(2)}%</div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div>{asset.collateralFactor ? (asset.collateralFactor * 100).toFixed(0) + "%" : "0%"}</div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
-                      Supply
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div>${asset.liquidity?.toLocaleString() || "0"}</div>
+                      <div className="text-xs text-[var(--secondary)]">
+                        {providedLiquidity > 0 && (
+                          <span className="ml-2 text-[var(--success)]">
+                            {formatUSDC(providedLiquidity)} USDC
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="text-[var(--success)]">{asset.apy?.toFixed(2)}%</div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div>{asset.collateralFactor ? (asset.collateralFactor * 100).toFixed(0) + "%" : "0%"}</div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
+                        Supply
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

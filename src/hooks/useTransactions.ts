@@ -5,7 +5,7 @@ export function useTransactions(token?: string) {
     return useQuery<Transaction[]>({
         queryKey: ['transactions', token],
         queryFn: () => getTransactions(token),
-        refetchInterval: 5000, // Poll every 5 seconds
-        staleTime: 4000, // Consider data stale after 4 seconds
+        refetchInterval: 3000, // Poll every 3 seconds
+        staleTime: 2000, // Consider data stale after 2 seconds
     });
 } 
