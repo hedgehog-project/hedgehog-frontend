@@ -68,13 +68,13 @@ export default function Home() {
               name={asset.name}
               symbol={asset.symbol}
               tokenizedSymbol={asset.tokenizedSymbol}
-              price={asset.price}
               change={asset.change}
               changePercent={asset.changePercent}
               apy={asset.apy}
               logoUrl={asset.logoUrl}
               collateralFactor={asset.collateralFactor}
               utilizationRate={asset.utilizationRate}
+              contractAddress={asset.contractAddress}
             />
           ))}
         </div>

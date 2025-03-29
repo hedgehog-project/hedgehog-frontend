@@ -2,23 +2,23 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { Wallet, Loader2, Droplet } from "lucide-react";
-import { TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
-import tempUsdcABI from "@/abi/TempUSDC.json";
+import { KES_CONTRACT_TOKEN_ADDRESS } from "@/config/contracts";
+import kesABI from "@/abi/KES.json";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
 import { Abi } from "viem";
 
 interface FaucetFormData {
-  amount: string;
+  amount: number;
 }
 
 export default function Faucet() {
-  const { handleSubmit, setValue } = useForm<FaucetFormData>({
+  const { handleSubmit, setValue, register } = useForm<FaucetFormData>({
     defaultValues: {
-      amount: "10000",
+      amount: 10000,
     },
   });
 
@@ -27,6 +27,7 @@ export default function Faucet() {
   const [isLoading, setIsLoading] = useState(false);
   const { writeContractAsync } = useWriteContract();
   const { data: requestHash } = useWriteContract();
+  const publicClient = usePublicClient();
   
   const { isLoading: isWaiting } = useWaitForTransactionReceipt({
     hash: requestHash,
@@ -54,14 +55,21 @@ export default function Faucet() {
     setIsLoading(true);
     
     try {
-      // Convert amount to uint64 (matches the contract's expected type)
-      const amountInTusdc = BigInt(Math.floor(Number(data.amount) * 1e6));
+      // Ensure we have a valid number before conversion
+      const numericAmount = Number(data.amount);
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        throw new Error("Invalid amount provided");
+      }
       
-      await writeContractAsync({
-        address: formatAddress(TUSDC_TOKEN_ADDRESS),
-        abi: tempUsdcABI.abi as Abi,
+      // Convert amount to uint64 (matches the contract's expected type)
+      const amountInKes = BigInt(Math.floor(numericAmount * 1e6));
+      console.log("Amount in KES:", amountInKes);
+      
+      const hash = await writeContractAsync({
+        address: formatAddress(KES_CONTRACT_TOKEN_ADDRESS),
+        abi: kesABI.abi as Abi,
         functionName: "requestAirdrop",
-        args: [amountInTusdc],
+        args: [amountInKes],
       });
 
       toast({
@@ -69,7 +77,15 @@ export default function Faucet() {
         description: "Waiting for tokens to be sent to your wallet...",
       });
 
-      setValue("amount", "");
+      await publicClient?.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+
+      toast({
+        title: "Tokens received",
+        description: `You have received ${numericAmount} KES. You can now use them in the protocol.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
+
+      setValue("amount", 0);
       
     } catch (error) {
       console.error("Faucet request error:", error);
@@ -105,7 +121,14 @@ export default function Faucet() {
             <input
               type="number"
               id="amount"
-              defaultValue="1000"
+              {...register("amount", { 
+                required: "Amount is required",
+                min: {
+                  value: 0,
+                  message: "Amount must be greater than 0"
+                },
+                valueAsNumber: true
+              })}
               className="w-full px-4 py-2 rounded-md border border-[var(--border-color)] bg-[var(--card-bg)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               placeholder="Enter amount"
             />

@@ -7,7 +7,7 @@ import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
-import { Abi } from "viem";
+import { Abi, encodeFunctionData } from "viem";
 import { assets } from "@/data/marketData";
 import {
   Dialog,
@@ -26,6 +26,13 @@ export const AssociateTokensModal = () => {
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
   const { toast } = useToast();
+
+  // Clear local storage when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) {
+      localStorage.removeItem(TOKENS_ASSOCIATED_KEY);
+    }
+  }, [isConnected]);
 
   // Check local storage and wallet connection status
   useEffect(() => {
@@ -50,40 +57,78 @@ export const AssociateTokensModal = () => {
     setIsLoading(true);
 
     try {
-      // Get all contract addresses from assets and ensure they are properly formatted
-      const contractAddresses = assets.map(asset => formatAddress(asset.contractAddress)) as `0x${string}`[];
-      console.log("contractAddresses:",typeof contractAddresses)
-      // Associate all tokens at once
-      const associateHash = await writeContractAsync({
-        address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
-        abi: htsABI.abi as Abi,
-        functionName: "associateTokens",
-        args: [address, contractAddresses],
-      });
+    // Prepare contract addresses from assets
+    const contractAddresses = assets.map(asset => formatAddress(asset.contractAddress)) as `0x${string}`[];
+    console.log("Contract addresses:", contractAddresses);
 
+    // Encode the function call data for associateTokens
+    const data = encodeFunctionData({
+      abi: htsABI.abi,
+      functionName: "associateTokens",
+      args: [address, contractAddresses],
+    });
+
+    // Define the contract address
+    const contractAddress = "0x0000000000000000000000000000000000000167" as `0x${string}`;
+
+    // Estimate gas with a try-catch for fallback
+    let gasLimit;
+    try {
+      const gasEstimate = await publicClient?.estimateGas({
+        account: address, // User's address for accurate estimation
+        to: contractAddress,
+        data: data,
+      });
+      // Add a 10% buffer to the gas estimate
+      gasLimit = BigInt(Math.ceil(Number(gasEstimate) * 10.5));
+      console.log("Estimated gas with buffer:", gasLimit);
+    } catch (estimationError) {
+      console.error("Gas estimation failed:", estimationError);
       toast({
-        title: "Token association in progress",
-        description: "Waiting for token association to be confirmed...",
-        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+        title: "Gas estimation failed",
+        description: "Using default gas limit for the transaction.",
+        variant: "destructive",
       });
+      // Fallback to a default gas limit
+      gasLimit = BigInt(10000000); // Adjust this value as needed
+    }
 
-      await publicClient?.waitForTransactionReceipt({ hash: associateHash });
+    // Execute the transaction with the calculated gas limit
+    const associateHash = await writeContractAsync({
+      address: contractAddress,
+      abi: htsABI.abi as Abi,
+      functionName: "associateTokens",
+      args: [address, contractAddresses],
+      gas: gasLimit,
+    });
 
-      // Mark tokens as associated in local storage
-      localStorage.setItem(TOKENS_ASSOCIATED_KEY, "true");
+    // Notify user that the transaction is in progress
+    toast({
+      title: "Token association in progress",
+      description: "Waiting for token association to be confirmed...",
+      className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+    });
 
-      toast({
-        title: "Token association successful",
-        description: "All tokens have been associated with your account.",
-        className: "bg-green-500/50 border-green-500 text-white border-none",
-      });
+    // Wait for transaction confirmation
+    await publicClient?.waitForTransactionReceipt({ hash: associateHash });
 
-      setIsOpen(false);
+    // Update local storage and notify success
+    localStorage.setItem(TOKENS_ASSOCIATED_KEY, "true");
+    toast({
+      title: "Token association successful",
+      description: "All tokens have been associated with your account.",
+      className: "bg-green-500/50 border-green-500 text-white border-none",
+    });
+
+    setIsOpen(false);
     } catch (error) {
       console.error("Token association error:", error);
       toast({
         title: "Token association failed",
-        description: error instanceof Error ? error.message : "Failed to associate tokens.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to associate tokens.",
         variant: "destructive",
       });
     } finally {
@@ -103,7 +148,8 @@ export const AssociateTokensModal = () => {
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <p className="text-sm text-[var(--secondary)]">
-              Click the button below to associate all available tokens with your wallet.
+              Click the button below to associate all available tokens with your
+              wallet.
             </p>
           </div>
           <button
@@ -116,7 +162,8 @@ export const AssociateTokensModal = () => {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Associating Tokens...
+                <Loader2 className="w-4 h-4 animate-spin" /> Associating
+                Tokens...
               </span>
             ) : (
               "Associate All Tokens"
@@ -126,4 +173,4 @@ export const AssociateTokensModal = () => {
       </DialogContent>
     </Dialog>
   );
-}; 
+};

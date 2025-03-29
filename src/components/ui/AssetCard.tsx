@@ -2,33 +2,35 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import AssetImage from "./AssetImage";
+import { useAssetPrice } from "@/hooks/usePrices";
 
 interface AssetCardProps {
   id: string;
   name: string;
   symbol: string;
   tokenizedSymbol?: string;
-  price: number;
   change: number;
   changePercent: number;
   apy: number;
   logoUrl: string;
   collateralFactor: number;
   utilizationRate: number;
+  contractAddress: string;
 }
 
 export default function AssetCard({
   name,
   symbol,
   tokenizedSymbol,
-  price,
   change,
   changePercent,
   apy,
   logoUrl,
   collateralFactor,
+  contractAddress,
 }: AssetCardProps) {
   const isPositive = change >= 0;
+  const { data: assetPrice, isLoading: isLoadingAssetPrice } = useAssetPrice(contractAddress);
 
   return (
     <Link href={`/asset/${tokenizedSymbol}`}>
@@ -52,7 +54,7 @@ export default function AssetCard({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-[var(--secondary)] mb-1">Price</p>
-            <p className="font-medium">KES {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="font-medium">KES {isLoadingAssetPrice ? "0.00" : assetPrice?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
           <div>
             <p className="text-xs text-[var(--secondary)] mb-1">24h Change</p>

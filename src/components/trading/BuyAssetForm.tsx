@@ -9,7 +9,7 @@ import issuerABI from "@/abi/Issuer.json";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
-import { Abi } from "viem";
+import { Abi, encodeFunctionData } from "viem";
 import htsABI from "@/abi/HederaTokenService.json";
 import { adminClient, adminAccount } from "@/lib/admin";
 
@@ -48,13 +48,13 @@ export default function BuyAssetForm({
   const quantity = watch("quantity");
 
   // TUSDC balance
-  const { data: tusdcBalance, refetch: refetchTusdcBalance } = useBalance({
+  const { data: kesBalance, refetch: refetchKesBalance } = useBalance({
     address,
     token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
   });
 
-  const formattedTusdcBalance = tusdcBalance
-    ? (Number(tusdcBalance.value) / 1e6).toLocaleString(undefined, {
+  const formattedKesBalance = kesBalance
+    ? (Number(kesBalance.value) / 1e6).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })
@@ -90,14 +90,14 @@ export default function BuyAssetForm({
 
    // Set amount based on percentage of max allowable amount
    const handlePercentage = (percentage: number) => {
-    const maxAmount = Number(formattedTusdcBalance.toString().replace(/,/g, ''));
+    const maxAmount = Number(formattedKesBalance.toString().replace(/,/g, ''));
     if (maxAmount > 0) {
       const calculatedAmount = (maxAmount * percentage / 100).toFixed(0);
       setValue("amount", calculatedAmount);
     } else {
       toast({
         title: "Insufficient Balance",
-        description: "You don't have any TUSDC balance to trade with.",
+        description: "You don't have any KES balance to trade with.",
         variant: "destructive"
       });
     }
@@ -126,7 +126,8 @@ export default function BuyAssetForm({
     setIsLoading(true);
 
     try {
-      const amountInTusdc = BigInt(Math.floor(Number(data.amount) * 1e6));
+      const amountInKes = BigInt(Math.floor(Number(data.amount) * 1e6));
+      console.log(amountInKes);
 
       if (!assetContractAddress) {
         toast({
@@ -136,28 +137,6 @@ export default function BuyAssetForm({
         });
         return;
       }
-
-      // First, associate the token with the user's account
-      const associateHash = await writeContractAsync({
-        address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
-        abi: htsABI.abi as Abi,
-        functionName: "associateTokens",
-        args: [address, [formatAddress(assetContractAddress)]],
-      });
-
-      toast({
-        title: "Token association in progress",
-        description: "Waiting for token association to be confirmed...",
-        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
-      });
-
-      await publicClient?.waitForTransactionReceipt({ hash: associateHash });
-
-      toast({
-        title: "Token association successful",
-        description: "Token has been associated with your account.",
-        className: "bg-green-500/50 border-green-500 text-white border-none",
-      });
 
       // Grant KYC to the user using admin client
       if (!publicClient) {
@@ -178,18 +157,18 @@ export default function BuyAssetForm({
       });
 
       try {
-        const { request } = await publicClient.simulateContract({
-          address: formatAddress(ISSUER_CONTRACT_ADDRESS),
-          abi: issuerABI.abi as Abi,
-          functionName: "grantKYC",
+        const data = encodeFunctionData({
+          abi: issuerABI.abi,
+          functionName: 'grantKYC',
           args: [assetName, address],
-          account: adminAccount.address,
         });
 
-        console.log('Simulation successful, proceeding with KYC grant...');
-        console.log('Transaction will be signed by:', adminAccount.address);
-
-        const grantKycHash = await adminClient.writeContract(request);
+        const tx = {
+          to: formatAddress(ISSUER_CONTRACT_ADDRESS),
+          data,
+        };
+      
+        const grantKycHash = await adminClient.sendTransaction(tx);
 
         toast({
           title: "KYC Grant in progress",
@@ -214,12 +193,13 @@ export default function BuyAssetForm({
         return;
       }
 
-      // Approval transaction
+      // Approval transaction with 2x amount
+      const approvalAmount = amountInKes * BigInt(2);
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
         abi: htsABI.abi as Abi,
         functionName: "approve",
-        args: [TUSDC_TOKEN_ADDRESS, formatAddress(ISSUER_CONTRACT_ADDRESS), amountInTusdc],
+        args: [TUSDC_TOKEN_ADDRESS, formatAddress(ISSUER_CONTRACT_ADDRESS), approvalAmount],
       });
 
       toast({
@@ -260,7 +240,7 @@ export default function BuyAssetForm({
       // Reset form and refetch data
       setValue("amount", "");
       setValue("quantity", "");
-      refetchTusdcBalance();
+      refetchKesBalance();
       refetchTransactions?.();
     } catch (error) {
       console.error("Transaction error:", error);
@@ -286,12 +266,12 @@ export default function BuyAssetForm({
             </label>
             <div className="flex items-end">
               <span className="text-[var(--secondary)] text-xs pr-1">Balance: </span>
-              <span className="text-xs font-semibold">{formattedTusdcBalance} USDC</span>
+              <span className="text-xs font-semibold">{formattedKesBalance} KES</span>
             </div>
           </div>
           <div className="flex rounded-md overflow-hidden border border-[var(--border-color)]">
             <div className="bg-[var(--border-color)]/20 flex items-center px-2">
-              <span className="text-[var(--secondary)] text-sm">USDC</span>
+              <span className="text-[var(--secondary)] text-sm">KES</span>
             </div>
             <input
               id="buy-amount"
@@ -349,14 +329,14 @@ export default function BuyAssetForm({
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Price</span>
             <span>
-              USDC{" "}
+              KES{" "}
               {assetPrice ? assetPrice.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "0.00"}
             </span>
           </div>
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
             <span>
-              USDC{" "}
+              KES{" "}
               {amount ? parseFloat(amount).toLocaleString("en-US", { maximumFractionDigits: 0 }) : "0"}
             </span>
           </div>

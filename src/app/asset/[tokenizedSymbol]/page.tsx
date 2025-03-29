@@ -42,11 +42,12 @@ export default function AssetDetailPage() {
   const asset = assets.find((a) => a.tokenizedSymbol === tokenizedSymbol);
 
   // Fetch price using TanStack Query
-  const { data: assetPrice, isLoading } = useAssetPrice(
+  const { data: assetPrice, isLoading: isAssetPriceLoading } = useAssetPrice(
     asset?.contractAddress || ""
 
   );
 
+  // console.log(assetPrice);
 
   // Fetch transactions using our new hook
   const { data: transactions, refetch: refetchTransactions } = useTransactions(
@@ -86,7 +87,7 @@ export default function AssetDetailPage() {
       {
         accessorKey: "amount",
         id: "value",
-        header: "Value(USDC)",
+        header: "Value(KES)",
         cell: ({ row }) => {
           const amount = row.getValue("amount") as number;
           const value = (asset?.price || 0) * amount;
@@ -95,7 +96,7 @@ export default function AssetDetailPage() {
               {value.toLocaleString("en-US", {
                 maximumFractionDigits: 0,
               })}
-              <span className="text-xs text-[var(--secondary)]">USDC</span>
+              <span className="text-xs text-[var(--secondary)]">KES</span>
             </>
           );
         },
@@ -164,7 +165,7 @@ export default function AssetDetailPage() {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
-                {isLoading && (
+                {isAssetPriceLoading && (
                   <span className="text-sm text-[var(--secondary)] ml-2">
                     (Updating...)
                   </span>
@@ -348,7 +349,7 @@ export default function AssetDetailPage() {
 
           <div className="card p-4 mt-2">
             <h3 className="text-sm font-medium mb-3">Recent Trades</h3>
-            {isLoading ? (
+            {isAssetPriceLoading ? (
               <TransactionSkeleton />
             ) : transactions?.length === 0 ? (
               <div className="text-sm text-[var(--secondary)]">No recent transactions</div>
@@ -447,7 +448,7 @@ export default function AssetDetailPage() {
               <TabsContent value="buy" className="mt-0 pt-0">
                 <BuyAssetForm
                   assetName={asset.name}
-                  assetPrice={asset.price}
+                  assetPrice={currentPrice ?? undefined}
                   tokenizedSymbol={asset.tokenizedSymbol}
                   assetContractAddress={asset.contractAddress}
                   refetchTransactions={refetchTransactions}

@@ -12,7 +12,7 @@ export function useAssetPrice(token: string) {
     //   console.log('Received price:', price);
       return price;
     },
-    refetchInterval: 5000, // Refetch every 5 seconds
+    //refetchInterval: 5000, // Refetch every 5 seconds
    // staleTime: 4000, // Consider data stale after 4 seconds
   });
 }
@@ -28,7 +28,7 @@ export function useAllAssetPrices() {
     //   console.log('Received all prices:', prices);
       return prices;
     },
-    refetchInterval: 5000, // Refetch every 5 seconds
+    //refetchInterval: 5000, // Refetch every 5 seconds
     //staleTime: 4000, // Consider data stale after 4 seconds
   });
 } 

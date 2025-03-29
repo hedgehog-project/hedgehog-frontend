@@ -5,7 +5,7 @@ import { Info, DollarSign, Wallet, ArrowRight } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
 import { cn } from "@/lib/utils";
 import { useAccount, useBalance } from "wagmi";
-import { TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
+import { KES_TOKEN_ADDRESS } from "@/config/contracts";
 import { assets } from "@/data/marketData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
@@ -99,10 +99,12 @@ export default function PortfolioPage() {
   const router = useRouter();
 
   // Get TUSDC balance
-  const { data: tusdcBalance } = useBalance({
+  const { data: kesBalance } = useBalance({
     address: address,
-    token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
+    token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
+
+
 
   // Get balances for each asset individually
   const scomBalance = useBalance({
@@ -156,16 +158,16 @@ export default function PortfolioPage() {
   );
 
   // Format TUSDC balance in USD
-  const formattedTusdcBalance = tusdcBalance
-    ? (Number(tusdcBalance.value) / 1e6).toLocaleString(undefined, {
+  const formattedkesBalance = kesBalance
+    ? (Number(kesBalance.value) / 1e6).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })
     : "0.00";
 
   // // Calculate TUSDC value in KES
-  // const tusdcValueInKes = tusdcBalance
-  //   ? ((Number(tusdcBalance.value) / 1e6) * USD_TO_KES_RATE).toLocaleString(
+  // const tusdcValueInKes = kesBalance
+  //   ? ((Number(kesBalance.value) / 1e6) * USD_TO_KES_RATE).toLocaleString(
   //       undefined,
   //       { minimumFractionDigits: 2, maximumFractionDigits: 2 }
   //     )
@@ -342,15 +344,14 @@ export default function PortfolioPage() {
               <div className="p-4 bg-[var(--border-color)]/30 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="font-medium">TUSDC</span>
+                    <span className="font-medium">KES</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {tusdcBalance === undefined ? (
-                      <p>$ 0.00</p>
+                    {kesBalance === undefined ? (
+                      <p>0.00</p>
                     ) : (
                       <span className="text-lg font-semibold">
-                        ${formattedTusdcBalance}
+                        {formattedkesBalance}
                       </span>
                     )}
                   </div>
