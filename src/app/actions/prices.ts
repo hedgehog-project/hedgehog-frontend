@@ -10,7 +10,7 @@ export async function getAssetPrice(token: string) {
     
     const latestPrice = await db.query.prices.findFirst({
       where: (prices, { eq }) => eq(prices.token, token),
-    //   orderBy: [desc(prices.timestamp)]
+      orderBy: [desc(prices.timestamp)]
     });
 
     console.log('Latest price from DB:', latestPrice);

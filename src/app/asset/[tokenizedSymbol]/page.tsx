@@ -47,7 +47,6 @@ export default function AssetDetailPage() {
 
   );
 
-  console.log("assetPrice:", asset?.contractAddress);
 
   // Fetch transactions using our new hook
   const { data: transactions, refetch: refetchTransactions } = useTransactions(
