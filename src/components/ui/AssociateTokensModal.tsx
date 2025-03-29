@@ -50,10 +50,9 @@ export const AssociateTokensModal = () => {
     setIsLoading(true);
 
     try {
-      // Get all contract addresses from assets
-      const contractAddresses = assets.map(asset => formatAddress(asset.contractAddress));
-
-
+      // Get all contract addresses from assets and ensure they are properly formatted
+      const contractAddresses = assets.map(asset => formatAddress(asset.contractAddress)) as `0x${string}`[];
+      console.log("contractAddresses:",typeof contractAddresses)
       // Associate all tokens at once
       const associateHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
@@ -87,12 +86,8 @@ export const AssociateTokensModal = () => {
         description: error instanceof Error ? error.message : "Failed to associate tokens.",
         variant: "destructive",
       });
-       // Mark tokens as associated in local storage
-       localStorage.setItem(TOKENS_ASSOCIATED_KEY, "true");
     } finally {
       setIsLoading(false);
-       // Mark tokens as associated in local storage
-       localStorage.setItem(TOKENS_ASSOCIATED_KEY, "true");
     }
   };
 
@@ -100,7 +95,7 @@ export const AssociateTokensModal = () => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Associate tokens to proceed</DialogTitle>
+          <DialogTitle>Associate Tokens</DialogTitle>
           <DialogDescription>
             Associate all available tokens with your wallet to enable trading.
           </DialogDescription>

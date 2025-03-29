@@ -36,6 +36,7 @@ export default function AssetDetailPage() {
     pageIndex: 0,
     pageSize: 10,
   });
+  
 
   // Find the asset from our data
   const asset = assets.find((a) => a.tokenizedSymbol === tokenizedSymbol);
@@ -43,7 +44,10 @@ export default function AssetDetailPage() {
   // Fetch price using TanStack Query
   const { data: assetPrice, isLoading } = useAssetPrice(
     asset?.contractAddress || ""
+
   );
+
+  console.log("assetPrice:", asset?.contractAddress);
 
   // Fetch transactions using our new hook
   const { data: transactions, refetch: refetchTransactions } = useTransactions(
