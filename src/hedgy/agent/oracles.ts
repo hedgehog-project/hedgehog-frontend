@@ -1,0 +1,242 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Oracles:
+// GET PRESS RELEASES
+// GET ASSET PRICES
+// GET DOCS AND EXPLANATIONS ON THE PLATFORM
+
+import { z } from "zod";
+import { Oracle } from "../framework/oracle";
+import { Effect } from "effect";
+
+const assetNameSchema =  z.enum(["ABSA", "EQTY", "BAMB", "CO-OP", "EABL", "EQUITY", "KCB", "KQ", "SAFARICOM", "KENYA AIRWAYS"])
+type ASSET_NAME_SCHEMA = z.infer<typeof assetNameSchema>
+
+async function getPressRelease(assetName: PRESS_RELEASE_QUERY_SCHEMA["assetName"]){
+    const BASE_PRESS_RELEASE_PATH = `https://raw.githubusercontent.com/hedgehog-project/dummy-press-releases/refs/heads/main/{{ASSET_NAME}}.md`
+                // absa.md
+                const locator = (()=>{
+                    switch(assetName){
+                        case "ABSA":{
+                            return "absa" 
+                        };
+                        case "BAMB": {
+                            return "bamburi" 
+                        };
+                        case "CO-OP": {
+                            return "cooperative-bank"
+                        };
+                        case "EABL": {
+                            return "eabl"
+                        };
+                        case "EQTY": {
+                            return "equity"
+                        };
+                        case "EQUITY": {
+                            return "equity"
+                        };
+                        case "KCB": {
+                            return "kcb"
+                        };
+                        case "KENYA AIRWAYS": {
+                            return "kenya-airways"
+                        };
+                        case "KQ": {
+                            return "kenya-airways"
+                        };
+                        case "SAFARICOM": {
+                            return "safaricom"
+                        } 
+                        default: { 
+                            return null 
+                        }
+                    }
+                })();
+
+    if(!locator) throw new Error("Invalid asset name");
+
+    const url = BASE_PRESS_RELEASE_PATH.replace("{{ASSET_NAME}}", locator)
+    const response = await fetch(url)
+    if(!response.ok) throw new Error("Failed to fetch press release")
+    const text = await response.text()
+
+                return {
+                    content: text
+                }
+}
+
+
+const pressReleaseQuerySchema = z.object({
+    assetName: assetNameSchema
+})
+
+type PRESS_RELEASE_QUERY_SCHEMA = z.infer<typeof pressReleaseQuerySchema>
+
+const pressReleaseResponseSchema = z.object({
+    content: z.string()
+})
+
+type PRESS_RELEASE_RESPONSE_SCHEMA = z.infer<typeof pressReleaseResponseSchema>
+
+export const PRESS_RELEASE_ORACLE_SPECIFIC = Oracle.define<PRESS_RELEASE_QUERY_SCHEMA, PRESS_RELEASE_RESPONSE_SCHEMA>({
+    name: "getSpecificPressRelease",
+    description: "Get the press release of a specific company",
+    querySchema: pressReleaseQuerySchema,
+    responseSchema: pressReleaseResponseSchema,
+    reader(args) {
+        return  Effect.tryPromise({ 
+            try: async () => {
+                return getPressRelease(args.assetName)
+            },
+            catch(e){
+                console.log("Something went wrong ::", e)
+                return e 
+            }
+        })
+    },
+})
+
+
+const pressReleaseQuerySchemaGeneral = z.object({
+    input: z.string()
+})
+
+type PRESS_RELEASE_QUERY_SCHEMA_GENERAL = z.infer<typeof pressReleaseQuerySchemaGeneral>
+
+const pressReleaseResponseSchemaGeneral = z.object({
+    content: z.string()
+})
+
+type PRESS_RELEASE_RESPONSE_SCHEMA_GENERAL = z.infer<typeof pressReleaseResponseSchemaGeneral>
+
+export const PRESS_RELEASE_ORACLE_GENERAL = Oracle.define<PRESS_RELEASE_QUERY_SCHEMA_GENERAL, PRESS_RELEASE_RESPONSE_SCHEMA_GENERAL>({
+    name: "getAllPressReleases",
+    description: "Get's the press releases of all companies whose tokenized shares are traded on the platform",
+    querySchema: pressReleaseQuerySchemaGeneral,
+    responseSchema: pressReleaseResponseSchemaGeneral,
+    reader(args){
+        return Effect.tryPromise({
+            try: async () => {
+                const ALL_ASSETS: Array<PRESS_RELEASE_QUERY_SCHEMA["assetName"]> = [
+                    "ABSA",
+                    "EQTY",
+                    "BAMB",
+                    "CO-OP",
+                    "EABL",
+                    "KCB",
+                    "SAFARICOM",
+                    "KENYA AIRWAYS"
+                ]
+
+                const content = await Promise.all(ALL_ASSETS.map(async (asset) => {
+                    return getPressRelease(asset)
+                }))
+
+                const GENERAL_PRESS_RELEASE = content?.filter((item) => item?.content !== null)?.map((c)=>c.content)?.join("\n\n")
+
+                if(!GENERAL_PRESS_RELEASE) throw new Error("No press releases found");
+
+                return {
+                    content: GENERAL_PRESS_RELEASE
+                }
+            },
+            catch(error) {
+                console.log("Something went wrong", error)
+                return error
+            },
+        })
+     }
+})
+
+const getAssetPriceQuerySchema = z.object({
+     assetName: assetNameSchema
+})
+
+type GET_ASSET_PRICE_QUERY_SCHEMA = z.infer<typeof getAssetPriceQuerySchema>
+
+const getAssetPriceOutputSchema = z.object({
+    price: z.number()
+})
+
+type GET_ASSET_PRICE_OUTPUT_SCHEMA = z.infer<typeof getAssetPriceOutputSchema>
+
+
+const getAssetPrice = async (assetName: ASSET_NAME_SCHEMA) => { 
+    return 100
+}
+
+export const GET_ASSET_PRICE_ORACLE = Oracle.define<GET_ASSET_PRICE_QUERY_SCHEMA, GET_ASSET_PRICE_OUTPUT_SCHEMA>({
+    name: "getAssetPrice",
+    description: "Get the price of a specific asset",
+    querySchema: getAssetPriceQuerySchema,
+    responseSchema: getAssetPriceOutputSchema,
+    reader(args){
+        return Effect.tryPromise({
+            try: async () => {  
+                const currentPrice = await getAssetPrice(args.assetName)
+                
+                return {
+                    price: currentPrice
+                }
+            },
+            catch(error){
+                console.log("Something went wrong ::", error)
+                return error
+            }
+        })
+    }
+})
+
+const getAssetsPriceQuerySchema = z.object({
+    input: z.string()
+}) 
+
+type GET_ASSETS_PRICE_QUERY_SCHEMA = z.infer<typeof getAssetsPriceQuerySchema>
+
+const getAssetsPriceOutputSchema = z.object({
+    results: z.array(z.object({ 
+        assetName: assetNameSchema,
+        price: z.number()
+    }))
+})
+
+type GET_ASSETS_PRICE_OUTPUT_SCHEMA = z.infer<typeof getAssetsPriceOutputSchema>
+
+export const GET_ASSET_PRICES = Oracle.define<GET_ASSETS_PRICE_QUERY_SCHEMA, GET_ASSETS_PRICE_OUTPUT_SCHEMA>({
+    name: "getAssetPrices",
+    description: "Get the prices of all assets on the platform", 
+    querySchema: getAssetsPriceQuerySchema,
+    responseSchema: getAssetsPriceOutputSchema,
+    reader(args) {
+         return Effect.tryPromise({
+            try: async () => {
+                const ALL_ASSETS: Array<GET_ASSET_PRICE_QUERY_SCHEMA["assetName"]> = [
+                    "ABSA",
+                    "EQTY",
+                    "BAMB",
+                    "CO-OP",
+                    "EABL",
+                    "KCB",
+                    "SAFARICOM",
+                    "KENYA AIRWAYS"
+                ]
+
+                const prices = await Promise.all(ALL_ASSETS.map(async (asset) => {
+                    const currentPrice = await getAssetPrice(asset)
+                    return {
+                        assetName: asset,
+                        price: currentPrice
+                    }
+                }))
+
+                return {
+                    results: prices
+                }
+            },
+            catch(error) {
+                console.log("Something went wrong ", error) 
+                return error
+            },
+         })
+    }, 
+})
+
