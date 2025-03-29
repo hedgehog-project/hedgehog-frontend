@@ -4,6 +4,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import "@/app/globals.css";
 import { ChevronDown, Wallet } from "lucide-react";
 import Image from 'next/image';
+import { AssociateTokensModal } from "./AssociateTokensModal";
 
 export const CustomWalletConnect = () => {
   return (
@@ -110,6 +111,8 @@ export const CustomWalletConnect = () => {
                     )}
                     <ChevronDown className="w-3 h-3 opacity-70" />
                   </button>
+
+                  <AssociateTokensModal />
                 </div>
               );
             })()}

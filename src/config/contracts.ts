@@ -6,17 +6,16 @@ const IS_MAINNET = DEFAULT_NETWORK === "mainnet";
 
 // Contract addresses based on network
 const TESTNET_ADDRESSES = {
-  ISSUER_CONTRACT: "0x000000000000000000000000000000000058162a", // Replace with actual testnet address
-  LENDER_CONTRACT: "0x0000000000000000000000000000000000581633", // Replace with actual testnet address
-  TUSDC_TOKEN: "0x00000000000000000000000000000000005815ef", // Replace with actual testnet address
-  SAFARICOM_TOKEN: "0x000000000000000000000000000000000058162d", // Replace with actual testnet address
+  ISSUER_CONTRACT: "0x0000000000000000000000000000000000585a22", // Replace with actual testnet address
+  LENDER_CONTRACT: "0x0000000000000000000000000000000000585a25", // Replace with actual testnet address
+  TUSDC_TOKEN: "0x00000000000000000000000000000000005859f2", // Replace with actual testnet address
+ // Replace with actual testnet address
 };
 
 const MAINNET_ADDRESSES = {
   ISSUER_CONTRACT: "0x9876543210987654321098765432109876543210", // Replace with actual mainnet address when deployed
   LENDER_CONTRACT: "0x1234567890abcdef1234567890abcdef12345678", // Replace with actual mainnet address when deployed
   TUSDC_TOKEN: "0xabcdef1234567890abcdef1234567890abcdef12", // Replace with actual mainnet address when deployed
-  SAFARICOM_TOKEN: "0xfedcba0987654321fedcba0987654321fedcba09", // Replace with actual mainnet address when deployed
 };
 
 // Export contract addresses based on environment
@@ -26,7 +25,6 @@ export const ADDRESSES = IS_MAINNET ? MAINNET_ADDRESSES : TESTNET_ADDRESSES;
 export const ISSUER_CONTRACT_ADDRESS = ADDRESSES.ISSUER_CONTRACT;
 export const LENDER_CONTRACT_ADDRESS = ADDRESSES.LENDER_CONTRACT;
 export const TUSDC_TOKEN_ADDRESS = ADDRESSES.TUSDC_TOKEN;
-export const SAFARICOM_TOKEN_ADDRESS = ADDRESSES.SAFARICOM_TOKEN;
 
 // Export chain IDs
 export const CURRENT_CHAIN_ID = IS_MAINNET 

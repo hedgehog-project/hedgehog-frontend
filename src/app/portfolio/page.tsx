@@ -6,7 +6,6 @@ import AssetImage from "@/components/ui/AssetImage";
 import { cn } from "@/lib/utils";
 import { useAccount, useBalance } from "wagmi";
 import { TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
-import { Loader2 } from "lucide-react";
 import { assets } from "@/data/marketData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
@@ -263,11 +262,11 @@ export default function PortfolioPage() {
                     <div className="text-lg font-semibold">
                       $ {/* ${formatUSDC(totalPortfolioValue)} */}
                       {isTotalProvidedLiquidityLoading ? (
-                        <p>$ 0.00</p>
+                        <p>0.00</p>
                       ) : totalProvidedLiquidity ? (
                         formatUSDC(totalProvidedLiquidity)
                       ) : (
-                        "$ 0.00"
+                        "0.00"
                       )}
                     </div>
                     <div className="text-xs text-[var(--success)]">+2.4%</div>
@@ -348,7 +347,7 @@ export default function PortfolioPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {tusdcBalance === undefined ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <p>$ 0.00</p>
                     ) : (
                       <span className="text-lg font-semibold">
                         ${formattedTusdcBalance}

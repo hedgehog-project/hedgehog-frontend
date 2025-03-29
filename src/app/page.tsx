@@ -1,3 +1,5 @@
+"use client";
+
 import { Search, Filter, ArrowUpDown } from "lucide-react";
 import AssetCard from "@/components/ui/AssetCard";
 import { assets } from "@/data/marketData";
