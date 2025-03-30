@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getMarketsProvidedLiquidityByAccount, getProvidedLiquidity, getTotalProvidedLiquidity, getTotalProvidedLiquidityByAccount } from "@/app/actions/providedLiquidity";
+import { getAssetsProvidedLiquidityByAccount, getMarketsProvidedLiquidityByAccount, getProvidedLiquidity, getTotalProvidedLiquidity, getTotalProvidedLiquidityByAccount } from "@/app/actions/providedLiquidity";
 
 export function useProvidedLiquidity(assetTokenAddresses: string[]) {
   return useQuery({
@@ -12,7 +12,7 @@ export function useProvidedLiquidity(assetTokenAddresses: string[]) {
         assetTokenAddresses.map((address, index) => [address, results[index]])
       );
     },
-    //refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 2000, // Poll every 2 seconds
     enabled: assetTokenAddresses.length > 0, // Only run query if there are addresses
   });
 }
@@ -21,7 +21,7 @@ export function useTotalProvidedLiquidity() {
   return useQuery({
     queryKey: ["totalProvidedLiquidity"],
     queryFn: getTotalProvidedLiquidity,
-   //refetchInterval: 2000, // Poll every 2 seconds
+   refetchInterval: 2000, // Poll every 2 seconds
   });
 } 
 
@@ -29,7 +29,15 @@ export function useTotalProvidedLiquidityByAccount(account: `0x${string}`) {
   return useQuery({
     queryKey: ["totalProvidedLiquidityByAccount", account],
     queryFn: () => getTotalProvidedLiquidityByAccount(account),
-    //refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 2000, // Poll every 2 seconds
+  });
+}
+
+export function useAssetsProvidedLiquidityByAccount(account: `0x${string}`) {
+  return useQuery({
+    queryKey: ["assetsProvidedLiquidityByAccount", account],
+    queryFn: () => getAssetsProvidedLiquidityByAccount(account),
+    refetchInterval: 2000, // Poll every 2 seconds
   });
 }
 
@@ -37,6 +45,6 @@ export function useMarketsProvidedLiquidityByAccount(account: `0x${string}`) {
     return useQuery({
         queryKey: ["marketsProvidedLiquidityByAccount", account],
         queryFn: () => getMarketsProvidedLiquidityByAccount(account),
-        //refetchInterval: 2000, // Poll every 2 seconds
+        refetchInterval: 2000, // Poll every 2 seconds
     });
 }

@@ -24,6 +24,7 @@ import {
 } from "@/hooks/useProvidedLiquidity";
 import Image from "next/image";
 import { useLoans, useTotalLoanAmount } from "@/hooks/useTotalLoanAmount";
+import { AssetBalance } from "@/components/portfolio/AssetBalance";
 
 // Constants
 // const USD_TO_KES_RATE = 129;
@@ -104,59 +105,6 @@ export default function PortfolioPage() {
     token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
 
-
-
-  // Get balances for each asset individually
-  const scomBalance = useBalance({
-    address: address,
-    token: assets[0].contractAddress as `0x${string}`,
-  });
-  const eqtyBalance = useBalance({
-    address: address,
-    token: assets[1].contractAddress as `0x${string}`,
-  });
-  const kqBalance = useBalance({
-    address: address,
-    token: assets[2].contractAddress as `0x${string}`,
-  });
-  const kcbBalance = useBalance({
-    address: address,
-    token: assets[3].contractAddress as `0x${string}`,
-  });
-  const absaBalance = useBalance({
-    address: address,
-    token: assets[4].contractAddress as `0x${string}`,
-  });
-  const eablBalance = useBalance({
-    address: address,
-    token: assets[5].contractAddress as `0x${string}`,
-  });
-  const coopBalance = useBalance({
-    address: address,
-    token: assets[6].contractAddress as `0x${string}`,
-  });
-  const bambBalance = useBalance({
-    address: address,
-    token: assets[7].contractAddress as `0x${string}`,
-  });
-
-  // Combine balances with asset data
-  const assetBalances = [
-    { ...assets[0], balance: scomBalance.data?.value || BigInt(0) },
-    { ...assets[1], balance: eqtyBalance.data?.value || BigInt(0) },
-    { ...assets[2], balance: kqBalance.data?.value || BigInt(0) },
-    { ...assets[3], balance: kcbBalance.data?.value || BigInt(0) },
-    { ...assets[4], balance: absaBalance.data?.value || BigInt(0) },
-    { ...assets[5], balance: eablBalance.data?.value || BigInt(0) },
-    { ...assets[6], balance: coopBalance.data?.value || BigInt(0) },
-    { ...assets[7], balance: bambBalance.data?.value || BigInt(0) },
-  ];
-
-  // Filter assets with non-zero balances
-  const assetsWithBalance = assetBalances.filter(
-    (asset) => asset.balance > BigInt(0)
-  );
-
   // Format TUSDC balance in USD
   const formattedkesBalance = kesBalance
     ? (Number(kesBalance.value) / 1e6).toLocaleString(undefined, {
@@ -164,22 +112,6 @@ export default function PortfolioPage() {
         maximumFractionDigits: 2,
       })
     : "0.00";
-
-  // // Calculate TUSDC value in KES
-  // const tusdcValueInKes = kesBalance
-  //   ? ((Number(kesBalance.value) / 1e6) * USD_TO_KES_RATE).toLocaleString(
-  //       undefined,
-  //       { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-  //     )
-  //   : "0.00";
-
-  // Format asset balances
-  const formatAssetBalance = (balance: bigint) => {
-    return Number(balance).toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-  };
 
   const {
     data: totalProvidedLiquidity,
@@ -262,11 +194,11 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      $ {/* ${formatUSDC(totalPortfolioValue)} */}
+                       {/* ${formatUSDC(totalPortfolioValue)} */}
                       {isTotalProvidedLiquidityLoading ? (
                         <p>0.00</p>
                       ) : totalProvidedLiquidity ? (
-                        formatUSDC(totalProvidedLiquidity)
+                        formatUSDC(totalProvidedLiquidity) + " KES"
                       ) : (
                         "0.00"
                       )}
@@ -276,8 +208,8 @@ export default function PortfolioPage() {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-[var(--secondary)]">
-                    Across {assetsWithBalance.length} asset
-                    {assetsWithBalance.length > 1 ? "s" : ""}
+                    Across {assets.length} asset
+                    {assets.length > 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
@@ -291,11 +223,11 @@ export default function PortfolioPage() {
                   <div className="text-right">
                     <div className="text-lg font-semibold">
                       {isTotalLoanAmountLoading ? (
-                        <p>$ 0.00</p>
+                        <p>0.00</p>
                       ) : totalLoanAmount ? (
-                        "$ " + formatUSDC(totalLoanAmount)
+                        " " + formatUSDC(totalLoanAmount)
                       ) : (
-                        "$ 0.00"
+                        "0.00"
                       )}
                     </div>
                     <div className="text-xs text-[var(--danger)]">-0.7%</div>
@@ -368,35 +300,8 @@ export default function PortfolioPage() {
 
             {/* Asset Balances below */}
             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-              {assetsWithBalance.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="p-4 bg-[var(--border-color)]/10 rounded-lg"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <AssetImage
-                        logoUrl={asset.logoUrl}
-                        symbol={asset.symbol}
-                        size={8}
-                      />
-                      <span className="font-medium">
-                        {asset.tokenizedSymbol}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold">
-                        {formatAssetBalance(asset.balance)}
-                      </div>
-                      <div className="text-xs text-[var(--success)]">
-                        ${formatUSDC(Number(asset.balance) * asset.price)}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-[var(--secondary)]">
-                    Price: ${formatUSDC(asset.price)}
-                  </p>
-                </div>
+              {assets.map((asset) => (
+                <AssetBalance key={asset.id} asset={asset} address={address as `0x${string}`} />
               ))}
             </div>
           </div>
@@ -454,9 +359,9 @@ export default function PortfolioPage() {
                   <thead>
                     <tr className="border-b border-[var(--border-color)]">
                       <th className="px-4 py-4 text-left">Asset</th>
-                      <th className="px-4 py-4 text-right">Amount</th>
-                      <th className="px-4 py-4 text-right">Value (USD)</th>
+                      <th className="px-4 py-4 text-right">Amount (KES)</th>
                       <th className="px-4 py-4 text-right">APY</th>
+                      <th className="px-4 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -481,9 +386,7 @@ export default function PortfolioPage() {
                         <td className="px-4 py-4 text-right">
                           {formatUSDC(position.amount / Math.pow(10, 6))}
                         </td>
-                        <td className="px-4 py-4 text-right">
-                          {formatUSDC(position.valueUSD)}
-                        </td>
+                       
                         <td className="px-4 py-4 text-right text-[var(--primary)]">
                           {position.asset?.apy
                             ? `${(position.asset.apy).toFixed(2)}%`

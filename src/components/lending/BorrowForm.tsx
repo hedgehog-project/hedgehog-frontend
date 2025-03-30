@@ -92,7 +92,7 @@ export default function BorrowForm({
     if (Number(data.amount) > borrowLimit) {
       toast({
         title: "Exceeds Borrow Limit",
-        description: `You can only borrow up to ${borrowLimit.toLocaleString()} USDC.`,
+        description: `You can only borrow up to ${borrowLimit.toLocaleString()} KES.`,
         variant: "destructive"
       });
       return;
@@ -110,10 +110,10 @@ export default function BorrowForm({
     setIsLoading(true);
     
     try {
-      // Calculate the amount in USDC (6 decimals)
-      const amountInUsdc = BigInt(Math.floor(Number(data.amount) * 1e6));
+      // Calculate the amount in KES (6 decimals)
+      const amountInKes = BigInt(Math.floor(Number(data.amount) / 129 * 1e6));
       
-      // First approve USDC spending using HTS
+      // First approve KES spending using HTS
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
         abi: htsABI.abi as Abi,
@@ -121,7 +121,7 @@ export default function BorrowForm({
         args: [
           assetAddress, // Token address
           LENDER_CONTRACT_ADDRESS, // Spender address
-          amountInUsdc
+          amountInKes
         ],
       });
 
@@ -137,7 +137,7 @@ export default function BorrowForm({
         // Then take out the loan
         const hash = await writeContractAsync({
           ...contractConfig,
-          args: [formatAddress(assetAddress), amountInUsdc],
+          args: [formatAddress(assetAddress), amountInKes],
         });
 
         toast({
@@ -152,7 +152,7 @@ export default function BorrowForm({
         
         toast({
           title: "Borrow successful",
-          description: `You have successfully borrowed ${data.amount} USDC.`,
+          description: `You have successfully borrowed ${data.amount} KES.`,
         });
       }
       
@@ -178,7 +178,7 @@ export default function BorrowForm({
         <div className="mb-4">
           <div className="flex justify-between items-center">
             <label htmlFor="borrow-amount" className="text-sm mb-1 block">
-              Amount (USDC)
+              Amount (KES)
             </label>
             <div className="flex items-end">
               <span className="text-[var(--secondary)] text-xs pr-1">Borrow Limit: </span>
@@ -188,7 +188,7 @@ export default function BorrowForm({
           
           <div className="flex rounded-md overflow-hidden border border-[var(--border-color)]">
             <div className="bg-[var(--border-color)]/20 flex items-center px-2">
-              <span className="text-[var(--secondary)] text-sm">USDC</span>
+              <span className="text-[var(--secondary)] text-sm">KES</span>
             </div>
             <input
               id="borrow-amount"
@@ -220,7 +220,7 @@ export default function BorrowForm({
         <div className="mb-4 p-3 rounded-md bg-[var(--border-color)]/10">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
-            <span>USDC {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
+            <span>KES {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
           </div>
         </div>
         
@@ -239,7 +239,7 @@ export default function BorrowForm({
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              <Wallet className="w-4 h-4" /> Borrow USDC
+              <Wallet className="w-4 h-4" /> Borrow KES
             </span>
           )}
         </button>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, useReadContract, usePublicClient } from "wagmi";
 import { Wallet, Loader2 } from "lucide-react";
 import { LENDER_CONTRACT_ADDRESS } from "@/config/contracts";
 import lenderABI from "@/abi/Lender.json";
@@ -34,8 +34,7 @@ export default function WithdrawForm({
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [lpTokenAddress, setLpTokenAddress] = useState<string | null>(null);
-  console.log("lpTokenAddress", lpTokenAddress);
-
+  const publicClient = usePublicClient();
 
   // Get LP token address for the asset
   const { data: lpTokenAddressData } = useReadContract({
@@ -157,42 +156,47 @@ export default function WithdrawForm({
       });
 
       toast({
-        title: "Approval initiated",
-        description: `Please wait for approval to complete before withdrawing...`,
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
       });
 
-      // Wait for approval transaction to be mined
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await publicClient?.waitForTransactionReceipt({ hash: approvalHash });
 
-      if (approvalHash) {
-        // Then withdraw the liquidity
-        const hash = await writeContractAsync({
-          ...contractConfig,
-          args: [formatAddress(assetAddress), amountInLpTokens],
-        });
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
-        toast({
-          title: "Withdrawal initiated",
-          description: `Transaction hash: ${hash}`,
-        });
+      // Then withdraw the liquidity
+      const withdrawHash = await writeContractAsync({
+        ...contractConfig,
+        args: [formatAddress(assetAddress), amountInLpTokens],
+      });
 
-        // Wait for withdrawal transaction to be mined
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      toast({
+        title: "Withdrawal in progress",
+        description: "Waiting for withdrawal transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
 
-        setValue("amount", "");
-        
-        toast({
-          title: "Withdrawal successful",
-          description: `You have successfully withdrawn ${data.amount} USDC.`,
-        });
-      }
+      await publicClient?.waitForTransactionReceipt({ hash: withdrawHash });
+
+      setValue("amount", "");
+      
+      toast({
+        title: "Withdrawal successful",
+        description: `You have successfully withdrawn ${data.amount} KES.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
       
     } catch (error) {
       console.error("Withdrawal error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate withdrawal. Please try again.",
-        variant: "destructive"
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to complete the transaction.",
+        className: "bg-red-500 text-white border-none",
       });
     } finally {
       setIsLoading(false);
@@ -270,13 +274,13 @@ export default function WithdrawForm({
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              <Wallet className="w-4 h-4" /> Withdraw USDC
+              <Wallet className="w-4 h-4" /> Withdraw KES
             </span>
           )}
         </button>
         
         <div className="mt-4 text-xs text-[var(--secondary)]">
-          <p>By withdrawing, you will burn your LP tokens and receive the underlying USDC plus any earned interest.</p>
+          <p>By withdrawing, you will burn your LP tokens and receive the underlying KES plus any earned interest.</p>
         </div>
       </form>
     </div>

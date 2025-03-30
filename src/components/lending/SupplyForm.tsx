@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, usePublicClient } from "wagmi";
 import { Wallet, Loader2 } from "lucide-react";
-import { LENDER_CONTRACT_ADDRESS, TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
+import { KES_TOKEN_ADDRESS, LENDER_CONTRACT_ADDRESS } from "@/config/contracts";
 import lenderABI from "@/abi/Lender.json";
 import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
@@ -29,26 +29,21 @@ export default function SupplyForm({
     },
   });
 
-  const [isKes, setIsKes] = useState(false);
   const { isConnected } = useAccount();
   const { toast } = useToast();
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const publicClient = usePublicClient();
 
-  // Get USDC balance for the connected wallet
-  const { data: usdcBalance, refetch: refetchUsdcBalance } = useBalance({
+  // Get KES balance for the connected wallet
+  const { data: kesBalance, refetch: refetchKesBalance } = useBalance({
     address: address,
-    token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
+    token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
 
-  // Format USDC balance with 6 decimals
-  const formattedUsdcBalance = usdcBalance ? 
-    (Number(usdcBalance.value) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
-    "0.00";
-
-  // Format USDC balance in KES
-  const formattedUsdcBalanceInKes = usdcBalance ? 
-    (Number(usdcBalance.value) / 1e6 * 129).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 
+  // Format KES balance
+  const formattedKesBalance = kesBalance ? 
+    (Number(kesBalance.value) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 
     "0";
   
   const { writeContractAsync } = useWriteContract();
@@ -66,14 +61,14 @@ export default function SupplyForm({
 
   // Set amount based on percentage of max allowable amount
   const handlePercentage = (percentage: number) => {
-    const maxAmount = Number(formattedUsdcBalance.toString().replace(/,/g, ''));
+    const maxAmount = Number(formattedKesBalance.toString().replace(/,/g, ''));
     if (maxAmount > 0) {
-      const calculatedAmount = (maxAmount * percentage / 100).toFixed(2);
+      const calculatedAmount = (maxAmount * percentage / 100).toFixed(0);
       setValue("amount", calculatedAmount);
     } else {
       toast({
         title: "Insufficient Balance",
-        description: "You don't have any USDC balance to supply.",
+        description: "You don't have any KES balance to supply.",
         variant: "destructive"
       });
     }
@@ -84,7 +79,7 @@ export default function SupplyForm({
     if (!isConnected) {
       toast({
         title: "Wallet not connected",
-        description: "Please connect your wallet to supply USDC.",
+        description: "Please connect your wallet to supply KES.",
         variant: "destructive"
       });
       return;
@@ -108,12 +103,10 @@ export default function SupplyForm({
       return;
     }
 
-    
-
-    if (Number(data.amount) > Number(formattedUsdcBalance)) {
+    if (Number(data.amount) > Number(formattedKesBalance)) {
       toast({
         title: "Insufficient Balance",
-        description: `You only have ${formattedUsdcBalance} USDC available to supply.`,
+        description: `You only have ${formattedKesBalance} KES available to supply.`,
         variant: "destructive"
       });
       return;
@@ -122,62 +115,67 @@ export default function SupplyForm({
     setIsLoading(true);
     
     try {
-      // Calculate the amount in USDC (6 decimals)
-      const amountInUsdc = BigInt(Math.floor(Number(data.amount) * 1e6));
+      // Calculate the amount in KES (6 decimals)
+      const amountInKes = BigInt(Math.floor(Number(data.amount) * 1e6));
       
-      // First approve USDC spending using HTS
+      // First approve KES spending using HTS
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
         abi: htsABI.abi as Abi,
         functionName: "approve",
         args: [
-          TUSDC_TOKEN_ADDRESS, // Token address
-          LENDER_CONTRACT_ADDRESS, // Spender address (don't format this)
-          amountInUsdc
+          KES_TOKEN_ADDRESS, // Token address
+          formatAddress(LENDER_CONTRACT_ADDRESS), // Spender address
+          amountInKes
         ],
       });
 
       toast({
-        title: "Approval initiated",
-        description: `Please wait for approval to complete before supplying...`,
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
       });
 
-      // Wait for approval transaction to be mined
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await publicClient?.waitForTransactionReceipt({ hash: approvalHash });
 
-      if (approvalHash) {
-        // Then supply the USDC
-        const hash = await writeContractAsync({
-          ...contractConfig,
-          args: [formatAddress(assetAddress), amountInUsdc], // Use unformatted addresses
-        });
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
-        toast({
-          title: "Supply initiated",
-          description: `Transaction hash: ${hash}`,
-        });
+      // Then supply the KES
+      const supplyHash = await writeContractAsync({
+        ...contractConfig,
+        args: [formatAddress(assetAddress), amountInKes],
+      });
 
-        // Wait for supply transaction to be mined
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      toast({
+        title: "Supply in progress",
+        description: "Waiting for supply transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
 
-        setValue("amount", "");
-        
-        toast({
-          title: "Supply successful",
-          description: `You have successfully supplied ${data.amount} USDC.`,
-        });
-      }
+      await publicClient?.waitForTransactionReceipt({ hash: supplyHash });
+
+      setValue("amount", "");
+      
+      toast({
+        title: "Supply successful",
+        description: `You have successfully supplied ${data.amount} KES.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
       
     } catch (error) {
       console.error("Supply error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate supply. Please try again.",
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to complete the transaction.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
-      refetchUsdcBalance();
+      refetchKesBalance();
     }
   };
 
@@ -194,31 +192,15 @@ export default function SupplyForm({
                 Amount
               </label>
             </div>
-            <div className="flex flex-col md:flex-row flex-start items-center gap-2 py-1">
-              <div className="flex items-center gap-1">
-                <span className="text-[var(--secondary)] text-xs">Currency:</span>
-                <button
-                  type="button"
-                  onClick={() => setIsKes(!isKes)}
-                  className="font-semibold text-xs px-2 py-1 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors"
-                >
-                  {isKes ? 'KES' : 'USDC'}
-                </button>
-              </div>
-              <div className="flex items-end">
-                <span className="text-[var(--secondary)] text-xs pr-1">Balance: </span>
-                <span className="text-xs font-semibold">
-                  {isKes 
-                    ? formattedUsdcBalanceInKes
-                    : formattedUsdcBalance}
-                </span>
-              </div>
+            <div className="flex items-end">
+              <span className="text-[var(--secondary)] text-xs pr-1">Balance: </span>
+              <span className="text-xs font-semibold">{formattedKesBalance}</span>
             </div>
           </div>
           
           <div className="flex rounded-md overflow-hidden border border-[var(--border-color)]">
             <div className="bg-[var(--border-color)]/20 flex items-center px-2">
-              <span className="text-[var(--secondary)] text-sm">{isKes ? 'KES' : 'USDC'}</span>
+              <span className="text-[var(--secondary)] text-sm">KES</span>
             </div>
             <input
               id="supply-amount"
@@ -250,7 +232,7 @@ export default function SupplyForm({
         <div className="mb-4 p-3 rounded-md bg-[var(--border-color)]/10">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
-            <span>{isKes ? 'KES' : 'USDC'} {watch("amount") ? (isKes ? (parseFloat(watch("amount")) * 129).toLocaleString('en-US', { maximumFractionDigits: 0 }) : parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 })) : "0"}</span>
+            <span>KES {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 0 }) : "0"}</span>
           </div>
         </div>
         
@@ -269,13 +251,13 @@ export default function SupplyForm({
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              <Wallet className="w-4 h-4" /> Supply USDC
+              <Wallet className="w-4 h-4" /> Supply KES
             </span>
           )}
         </button>
         
         <div className="mt-4 text-xs text-[var(--secondary)]">
-          <p>By supplying USDC, you agree to our Terms of Service and Privacy Policy. You will receive LP tokens in return for your supply.</p>
+          <p>By supplying KES, you agree to our Terms of Service and Privacy Policy. You will receive LP tokens in return for your supply.</p>
         </div>
       </form>
     </div>

@@ -47,7 +47,8 @@ export async function getTotalProvidedLiquidityByAccount(account: string) {
       .from(providedLiquidity)
       .where(eq(providedLiquidity.account, account));
 
-    // Sum all amounts and convert from raw USDC (6 decimals) to human-readable format
+
+    //Sum all amounts and convert from raw USDC (6 decimals) to human-readable format
     const totalAmount = allLiquidity.reduce((sum, item) => sum + item.amount, 0);
     return totalAmount / Math.pow(10, USDC_DECIMALS);
   } catch (error) {
@@ -55,6 +56,24 @@ export async function getTotalProvidedLiquidityByAccount(account: string) {
     throw new Error("Failed to fetch total provided liquidity by account");
   }
 }
+
+export async function getAssetsProvidedLiquidityByAccount(account: string) {
+  try {
+    const allLiquidity = await db
+      .select()
+      .from(providedLiquidity)
+      .where(eq(providedLiquidity.account, account));
+
+    console.log(allLiquidity);
+    return allLiquidity;
+
+
+  } catch (error) {
+    console.error("Error fetching total provided liquidity by account:", error);
+    throw new Error("Failed to fetch total provided liquidity by account");
+  }
+}
+
 
 
 export async function getMarketsProvidedLiquidityByAccount(account: string) {

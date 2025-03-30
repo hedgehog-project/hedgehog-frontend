@@ -41,7 +41,7 @@ export type ContractAddress = `0x${string}`
 // Helper function to ensure addresses are properly formatted
 export function formatAddress(address: string): ContractAddress {
   // If address already starts with 0x, ensure it's the right format
-  if (address.startsWith('0x')) {
+  if (address?.startsWith('0x')) {
     return address as ContractAddress
   }
   

@@ -7,9 +7,19 @@ import AssetImage from "@/components/ui/AssetImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SupplyForm from "@/components/lending/SupplyForm";
 import WithdrawForm from "@/components/lending/WithdrawForm";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useProvidedLiquidity, useTotalProvidedLiquidity } from "@/hooks/useProvidedLiquidity";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  useAssetsProvidedLiquidityByAccount,
+  useProvidedLiquidity,
+  useTotalProvidedLiquidity,
+} from "@/hooks/useProvidedLiquidity";
 import { formatUSDC } from "@/lib/utils";
+import { useAccount } from "wagmi";
 
 interface Asset {
   id: string;
@@ -29,7 +39,7 @@ interface Asset {
 const userLendStats = {
   totalSupplied: 7420.25,
   totalEarned: 182.79,
-  weightedApy: 2.47
+  weightedApy: 2.47,
 };
 
 export default function LendPage() {
@@ -38,13 +48,15 @@ export default function LendPage() {
   const [activeTab, setActiveTab] = useState("supply");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  
+  const { address } = useAccount();
+
   // Filter assets based on search term
-  const filteredAssets = assets.filter(asset => 
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAssets = assets.filter(
+    (asset) =>
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   // Sort assets based on selected criteria
   const sortedAssets = [...filteredAssets].sort((a, b) => {
     switch (sortBy) {
@@ -63,7 +75,7 @@ export default function LendPage() {
 
   // Get all asset addresses
   const assetAddresses = sortedAssets
-    .map(asset => asset.contractAddress)
+    .map((asset) => asset.contractAddress)
     .filter((address): address is string => !!address);
 
   // Fetch provided liquidity for all assets
@@ -71,6 +83,12 @@ export default function LendPage() {
 
   // Get total provided liquidity
   const { data: totalProvidedLiquidity = 0 } = useTotalProvidedLiquidity();
+
+  const {
+    data: assetsProvidedLiquidityByAccount,
+  } = useAssetsProvidedLiquidityByAccount(address as `0x${string}`);
+
+  console.log(assetsProvidedLiquidityByAccount);
 
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset);
@@ -80,44 +98,60 @@ export default function LendPage() {
   // Helper function to get total provided liquidity
   const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
     if (!providedLiquidityData?.[assetTokenAddress]) return 0;
-    return providedLiquidityData[assetTokenAddress].reduce((sum, item) => sum + item.amount, 0);
+    return providedLiquidityData[assetTokenAddress].reduce(
+      (sum, item) => sum + item.amount,
+      0
+    );
   };
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Lending Markets</h1>
-      
+
       {/* Supply Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--secondary)]">Total Supply</h3>
+            <h3 className="text-sm font-medium text-[var(--secondary)]">
+              Total Supply
+            </h3>
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold">
-              $ {formatUSDC(totalProvidedLiquidity)} 
+              {formatUSDC(totalProvidedLiquidity)} <span className="text-xs text-[var(--secondary)]">KES</span>
             </span>
           </div>
-          <p className="text-xs text-[var(--secondary)] mt-1">Across various assets</p>
+          <p className="text-xs text-[var(--secondary)] mt-1">
+            Across various assets
+          </p>
         </div>
-        
+
         <div className="card p-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--secondary)]">Average APY</h3>
+            <h3 className="text-sm font-medium text-[var(--secondary)]">
+              Average APY
+            </h3>
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">{userLendStats.weightedApy.toFixed(2)}%</span>
+            <span className="text-2xl font-semibold">
+              {userLendStats.weightedApy.toFixed(2)}%
+            </span>
           </div>
-          <p className="text-xs text-[var(--secondary)] mt-1">Weighted by supply amount</p>
+          <p className="text-xs text-[var(--secondary)] mt-1">
+            Weighted by supply amount
+          </p>
         </div>
       </div>
 
       {/* Search and Filter */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--secondary)]" size={16} />
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--secondary)]"
+            size={16}
+          />
           <input
             type="text"
             placeholder="Search assets..."
@@ -126,41 +160,40 @@ export default function LendPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex gap-2">
-         
-
           <button className="p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
-              <Filter className="w-4 h-4" />
-            </button>
+            <Filter className="w-4 h-4" />
+          </button>
 
-          
           <div className="relative">
             <button className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
-              <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}</span>
+              <span>
+                Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+              </span>
               <ArrowUpDown className="w-4 h-4" />
             </button>
             <div className="absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 hidden">
               <div className="py-1">
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
                   onClick={() => setSortBy("apy")}
                 >
                   APY
                 </button>
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
                   onClick={() => setSortBy("liquidity")}
                 >
                   Liquidity
                 </button>
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
                   onClick={() => setSortBy("price")}
                 >
                   Price
                 </button>
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
                   onClick={() => setSortBy("alphabetical")}
                 >
@@ -171,39 +204,59 @@ export default function LendPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Assets to Supply */}
       <div className="card overflow-hidden">
         <div className="p-4 border-b border-[var(--border-color)]">
           <h2 className="font-medium">Assets to Supply</h2>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--card-bg-secondary)]">
-                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">Asset</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Liquidity</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Supply APY</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Collateral Factor</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Action</th>
+                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Asset
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Liquidity
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Supply APY
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Collateral Factor
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {sortedAssets.map((asset) => {
-                const providedLiquidity = getTotalProvidedLiquidity(asset.contractAddress || "");
+                const providedLiquidity = getTotalProvidedLiquidity(
+                  asset.contractAddress || ""
+                );
+                // Get user's provided liquidity for this asset
+                const userProvidedLiquidity = assetsProvidedLiquidityByAccount?.find(
+                  (item) => item.asset === asset.contractAddress
+                );
+                const userProvidedAmount = userProvidedLiquidity 
+                  ? Number(userProvidedLiquidity.amount) / 1e6 
+                  : 0;
+
                 return (
-                  <tr 
-                    key={asset.id} 
+                  <tr
+                    key={asset.id}
                     className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
                     onClick={() => handleAssetClick(asset)}
                   >
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <AssetImage 
-                          logoUrl={asset.logoUrl} 
-                          symbol={asset.symbol} 
-                          size={8} 
+                        <AssetImage
+                          logoUrl={asset.logoUrl}
+                          symbol={asset.symbol}
+                          size={8}
                         />
                         <div>
                           <div className="font-medium">{asset.name}</div>
@@ -219,20 +272,34 @@ export default function LendPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div>${asset.liquidity?.toLocaleString() || "0"}</div>
+                      {providedLiquidity > 0 ? (
+                        <span className="ml-2">
+                         KES {formatUSDC(providedLiquidity)}
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-[var(--secondary)]">
+                          No liquidity
+                        </span>
+                      )}
                       <div className="text-xs text-[var(--secondary)]">
-                        {providedLiquidity > 0 && (
+                        {userProvidedAmount > 0 && (
                           <span className="ml-2 text-[var(--success)]">
-                            {formatUSDC(providedLiquidity)} USDC
+                            {formatUSDC(userProvidedAmount)}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div className="text-[var(--success)]">{asset.apy?.toFixed(2)}%</div>
+                      <div className="text-[var(--success)]">
+                        {asset.apy?.toFixed(2)}%
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div>{asset.collateralFactor ? (asset.collateralFactor * 100).toFixed(0) + "%" : "0%"}</div>
+                      <div>
+                        {asset.collateralFactor
+                          ? (asset.collateralFactor * 100).toFixed(0) + "%"
+                          : "0%"}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
@@ -246,7 +313,7 @@ export default function LendPage() {
           </table>
         </div>
       </div>
-      
+
       {/* Information Section */}
       {/* <div className="card p-6">
         <h2 className="text-xl font-medium mb-4">About Supplying</h2>
@@ -307,38 +374,48 @@ export default function LendPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>
-              {selectedAsset ? `${selectedAsset.name} (${selectedAsset.symbol})` : "Supply/Withdraw"}
+              {selectedAsset
+                ? `${selectedAsset.name} (${selectedAsset.symbol})`
+                : "Supply/Withdraw"}
             </SheetTitle>
           </SheetHeader>
-          
+
           <div className="mt-6">
-            <Tabs defaultValue="supply" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs
+              defaultValue="supply"
+              value={activeTab}
+              onValueChange={setActiveTab}
+            >
               <div className="border-b border-[var(--border-color)]">
                 <TabsList className="w-full h-auto p-0">
-                  <TabsTrigger 
-                    value="supply" 
+                  <TabsTrigger
+                    value="supply"
                     className={`flex-1 py-4 rounded-none text-sm font-medium ${
-                      activeTab === "supply" ? " border-b-2 border-[var(--primary)]" : ""
+                      activeTab === "supply"
+                        ? " border-b-2 border-[var(--primary)]"
+                        : ""
                     }`}
                   >
-                    Supply USDC
+                    Supply KES
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="withdraw" 
+                  <TabsTrigger
+                    value="withdraw"
                     className={`flex-1 py-4 rounded-none text-sm font-medium ${
-                      activeTab === "withdraw" ? "border-b-2 border-[var(--danger)]" : ""
+                      activeTab === "withdraw"
+                        ? "border-b-2 border-[var(--danger)]"
+                        : ""
                     }`}
                   >
-                    Withdraw USDC
+                    Withdraw KES
                   </TabsTrigger>
                 </TabsList>
               </div>
-              
+
               <div className="py-4">
                 <TabsContent value="supply" className="mt-0 pt-0">
                   <SupplyForm assetAddress={selectedAsset?.contractAddress} />
                 </TabsContent>
-                
+
                 <TabsContent value="withdraw" className="mt-0 pt-0">
                   <WithdrawForm assetAddress={selectedAsset?.contractAddress} />
                 </TabsContent>
@@ -349,4 +426,4 @@ export default function LendPage() {
       </Sheet>
     </div>
   );
-} 
+}

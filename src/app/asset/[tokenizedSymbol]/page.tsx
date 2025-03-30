@@ -90,7 +90,7 @@ export default function AssetDetailPage() {
         header: "Value(KES)",
         cell: ({ row }) => {
           const amount = row.getValue("amount") as number;
-          const value = (asset?.price || 0) * amount;
+          const value = (assetPrice || 0) * amount;
           return (
             <>
               {value.toLocaleString("en-US", {
@@ -204,7 +204,7 @@ export default function AssetDetailPage() {
         <p className="text-[var(--secondary)] py-2">{asset.description}</p>
         
         <TooltipProvider>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 space-y-2 lg:space-y-0 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 space-y-2 lg:space-y-0 mt-4">
             {/* Tokenization Details */}
             <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">
               <div className="flex items-center justify-between">
@@ -266,7 +266,7 @@ export default function AssetDetailPage() {
               <p className="text-lg font-medium mt-1">{(asset.utilizationRate * 100).toFixed(0)}%</p>
             </div>
 
-            <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">
+            {/* <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-medium text-[var(--secondary)] uppercase tracking-wider">Collateral Factor</h3>
                 <Tooltip>
@@ -294,7 +294,7 @@ export default function AssetDetailPage() {
                 </Tooltip>
               </div>
               <p className="text-lg font-medium mt-1">{((asset.collateralFactor - 0.05) * 100).toFixed(0)}%</p>
-            </div>
+            </div> */}
           </div>
         </TooltipProvider>
       </div>
