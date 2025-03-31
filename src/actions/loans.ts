@@ -39,6 +39,21 @@ export async function getLoans(account?: string) {
     }
 }
 
+export async function getAllLoans() {
+    try {
+        const query = db
+            .select()
+            .from(loans)
+            .orderBy(desc(loans.timestamp));
+
+        const results = await query;
+        return results as Loan[];
+    } catch (error) {
+        console.error('Error fetching loans:', error);
+        return [];
+    }
+}
+
 export async function getLoanRepaymentsByAccount(account: string) {
     try {
         const query = db
@@ -89,6 +104,23 @@ export async function getTotalLoanAmount(account: string) {
         return result[0]?.total ? result[0].total / Math.pow(10, 6) : 0;
     } catch (error) {
         console.error('Error fetching total loan amount:', error);
+        return 0;
+    }
+}
+
+export async function getTotalPlatformBorrowedAmount() {
+    try {
+        const query = db
+            .select({
+                total: sql<number>`sum(${loans.loanAmountUSDC})`
+            })
+            .from(loans);
+
+        const result = await query;
+        // Convert the amount from raw USDC (6 decimals) to human-readable format
+        return result[0]?.total ? result[0].total / Math.pow(10, 6) : 0;
+    } catch (error) {
+        console.error('Error calculating total platform borrowed amount:', error);
         return 0;
     }
 }

@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { TrendingUp, TrendingDown, HelpCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { assets, historicalPriceData } from "@/data/marketData";
-import { cn } from "@/lib/utils";
+import { cn, formatUSDC } from "@/lib/utils";
 import PriceChart from "@/components/assets/PriceChart";
 import AssetImage from "@/components/ui/AssetImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useTransactions } from "@/hooks/useTransactions";
 import TransactionSkeleton from "@/components/ui/TransactionSkeleton";
+import { useProvidedLiquidity } from "@/hooks/useProvidedLiquidity";
+import { useTotalPlatformBorrowedAmount } from "@/hooks/useTotalLoanAmount";
 
 export default function AssetDetailPage() {
   const params = useParams<{ tokenizedSymbol: string }>();
@@ -44,8 +46,31 @@ export default function AssetDetailPage() {
   // Fetch price using TanStack Query
   const { data: assetPrice, isLoading: isAssetPriceLoading } = useAssetPrice(
     asset?.contractAddress || ""
-
   );
+
+  // Fetch total supply and borrow
+  const { data: providedLiquidityData } = useProvidedLiquidity(
+    asset?.contractAddress ? [asset.contractAddress] : []
+  );
+  const { data: totalPlatformBorrowedAmount } = useTotalPlatformBorrowedAmount();
+
+  // Helper function to get total provided liquidity
+  const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
+    if (!providedLiquidityData?.[assetTokenAddress]) return 0;
+    return providedLiquidityData[assetTokenAddress].reduce(
+      (sum, item) => sum + item.amount,
+      0
+    );
+  };
+
+  // Calculate utilization rate
+  const calculateUtilizationRate = () => {
+    const totalSupply = getTotalProvidedLiquidity(asset?.contractAddress || "");
+    const totalBorrow = totalPlatformBorrowedAmount || 0;
+    
+    if (totalSupply === 0) return 0;
+    return (totalBorrow / totalSupply) * 100;
+  };
 
   // console.log(assetPrice);
 
@@ -218,7 +243,9 @@ export default function AssetDetailPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-lg font-medium mt-1">{asset.totalSupply}</p>
+              <p className="text-lg font-medium mt-1">
+                {formatUSDC(getTotalProvidedLiquidity(asset?.contractAddress || ""))} <span className="text-xs text-[var(--secondary)]">{asset?.tokenizedSymbol}</span>
+              </p>
             </div>
 
             <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">
@@ -233,7 +260,9 @@ export default function AssetDetailPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-lg font-medium mt-1">{asset.totalBorrow}</p>
+              <p className="text-lg font-medium mt-1">
+                {formatUSDC(totalPlatformBorrowedAmount || 0)} <span className="text-xs text-[var(--secondary)]">{asset?.tokenizedSymbol}</span>
+              </p>
             </div>
 
             <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">
@@ -263,7 +292,7 @@ export default function AssetDetailPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-lg font-medium mt-1">{(asset.utilizationRate * 100).toFixed(0)}%</p>
+              <p className="text-lg font-medium mt-1">{calculateUtilizationRate().toFixed(1)}%</p>
             </div>
 
             {/* <div className="bg-[var(--card-bg-secondary)] border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors p-2 rounded-md relative">

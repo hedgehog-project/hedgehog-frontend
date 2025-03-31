@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLoans, getTotalLoanAmount } from '@/actions/loans';
+import { getAllLoans, getLoans, getTotalLoanAmount, getTotalPlatformBorrowedAmount } from '@/actions/loans';
 
 export function useTotalLoanAmount(account: string) {
     return useQuery({
@@ -8,7 +8,15 @@ export function useTotalLoanAmount(account: string) {
         enabled: !!account,
         refetchInterval: 2000,
     });
-} 
+}
+
+export function useTotalPlatformBorrowedAmount() {
+    return useQuery({
+        queryKey: ['totalPlatformBorrowedAmount'],
+        queryFn: getTotalPlatformBorrowedAmount,
+        refetchInterval: 2000,
+    });
+}
 
 export function useLoans(account?: string) {
     return useQuery({
@@ -16,5 +24,12 @@ export function useLoans(account?: string) {
         queryFn: () => getLoans(account),
         enabled: !!account,
         refetchInterval: 2000,
+    });
+}
+
+export function useAllLoans() {
+    return useQuery({
+        queryKey: ['allLoans'],
+        queryFn: () => getAllLoans(),
     });
 }

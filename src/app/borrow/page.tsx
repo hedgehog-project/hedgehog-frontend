@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { assets } from "@/data/marketData";
-import { Search, Info, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Info, ArrowUpDown, Filter, ArrowRight } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
-import { cn, formatUSDC } from "@/lib/utils";
+import { formatUSDC } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BorrowForm from "@/components/lending/BorrowForm";
 import RepayForm from "@/components/lending/RepayForm";
@@ -12,8 +12,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useAssetsProvidedLiquidityByAccount, useProvidedLiquidity } from "@/hooks/useProvidedLiquidity";
 import { useAccount } from "wagmi";
 import AssetBorrowLimit from "@/components/lending/AssetBorrowLimit";
-import TotalBorrowLimit from "@/components/lending/TotalBorrowLimit";
-import { useLoanRepaymentsByAccount } from "@/hooks/useLoanRepayments";
+import { useRouter } from "next/navigation";
+import { useTotalPlatformBorrowedAmount } from "@/hooks/useTotalLoanAmount";
 
 interface Asset {
   id: string;
@@ -36,6 +36,7 @@ export default function BorrowPage() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { address } = useAccount();
+  const router = useRouter();
   
   const {
     data: assetsProvidedLiquidityByAccount,
@@ -57,7 +58,7 @@ export default function BorrowPage() {
     netAPY: 1.8
   };
 
-  console.log(assetsProvidedLiquidityByAccount);
+  // console.log(assetsProvidedLiquidityByAccount);
 
   // Filter assets based on search term
   const filteredAssets = assets.filter(
@@ -90,6 +91,9 @@ export default function BorrowPage() {
   // Fetch provided liquidity for all assets
   const { data: providedLiquidityData } = useProvidedLiquidity(assetAddresses);
 
+
+  const { data: totalPlatformBorrowedAmount } = useTotalPlatformBorrowedAmount();
+
   // Helper function to get total provided liquidity
   const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
     if (!providedLiquidityData?.[assetTokenAddress]) return 0;
@@ -104,31 +108,15 @@ export default function BorrowPage() {
     setIsSheetOpen(true);
   };
 
-  const { data: loanRepayments } = useLoanRepaymentsByAccount(address as `0x${string}`);
-  console.log(loanRepayments);
-  
+
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Borrow Markets</h1>
       
       {/* Borrow Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--secondary)]">Borrow Limit</h3>
-            <Info className="w-4 h-4 text-[var(--secondary)]" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <TotalBorrowLimit 
-              assets={sortedAssets.map(asset => ({
-                contractAddress: asset.contractAddress,
-                collateralFactor: asset.collateralFactor || 0
-              }))}
-              userAddress={address}
-            />
-          </div>
-          <p className="text-xs text-[var(--secondary)] mt-1">Based on your collateral</p>
-        </div>
+      
         
         <div className="card p-6">
           <div className="flex items-center justify-between mb-3">
@@ -136,34 +124,12 @@ export default function BorrowPage() {
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">{userBorrowStats.totalBorrowed.toLocaleString()} <span className="text-xs text-[var(--secondary)]">KES</span></span>
+            <span className="text-2xl font-semibold">
+              {formatUSDC(totalPlatformBorrowedAmount || 0)} <span className="text-xs text-[var(--secondary)]">KES</span>
+            </span>
           </div>
           <p className="text-xs text-[var(--secondary)] mt-1">Across all assets</p>
         </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-[var(--secondary)]">Borrow Limit Used</h3>
-            <Info className="w-4 h-4 text-[var(--secondary)]" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">{(userBorrowStats.borrowLimitUsed * 100).toFixed(1)}%</span>
-          </div>
-          <div className="mt-2 bg-[var(--border-color)] rounded-full h-1.5 w-full">
-            <div 
-              className={cn(
-                "h-full rounded-full",
-                userBorrowStats.borrowLimitUsed < 0.7 
-                  ? "bg-[var(--success)]" 
-                  : userBorrowStats.borrowLimitUsed < 0.9 
-                    ? "bg-[var(--warning)]" 
-                    : "bg-[var(--danger)]"
-              )}
-              style={{ width: `${userBorrowStats.borrowLimitUsed * 100}%` }}
-            ></div>
-          </div>
-        </div>
-        
         <div className="card p-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-[var(--secondary)]">Net APY</h3>
@@ -227,8 +193,12 @@ export default function BorrowPage() {
       
       {/* Assets to Borrow */}
       <div className="card overflow-hidden">
-        <div className="p-4 border-b border-[var(--border-color)]">
+        <div className="flex justify-between items-center p-4 border-b border-[var(--border-color)]">
           <h2 className="font-medium">Assets to Borrow</h2>
+          <button onClick={() => router.push("/portfolio")} className="flex items-center gap-2 text-sm hover:text-[var(--primary)] hover:underline py-1">
+            View my positions
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
         
      

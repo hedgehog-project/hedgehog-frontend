@@ -7,6 +7,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 // import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CustomWalletConnect } from "../ui/CustomWalletConnect";
+import Image from "next/image";
+import HedgehogLogo from "/public/images/Hedgehog.svg";
 
 const navItems = [
   { label: "Markets", href: "/", disabled: false },
@@ -28,8 +30,9 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="text-xl font-semibold">
-              <span className="text-[var(--primary)]">Hedge</span>
-              <span>hog</span>
+              {/* <span className="text-[var(--primary)]">Hedge</span>
+              <span>hog</span> */}
+              <Image src={HedgehogLogo} alt="Hedgehog Logo" width={125} height={32} />
             </Link>
           </div>
 

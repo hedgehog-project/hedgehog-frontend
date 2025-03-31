@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Info, DollarSign, Wallet, ArrowRight } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
 import { cn } from "@/lib/utils";
@@ -98,7 +98,8 @@ interface BorrowPosition {
 
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("supply");
-  // const [showKesValue, setShowKesValue] = useState(false);
+  const [previousTotalSupply, setPreviousTotalSupply] = useState<number | null>(null);
+  const [previousTotalBorrow, setPreviousTotalBorrow] = useState<number | null>(null);
   const [isWithdrawSheetOpen, setIsWithdrawSheetOpen] = useState(false);
   const [isRepaySheetOpen, setIsRepaySheetOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<{
@@ -130,6 +131,21 @@ export default function PortfolioPage() {
     isLoading: isTotalProvidedLiquidityLoading,
   } = useTotalProvidedLiquidityByAccount(address as `0x${string}`);
 
+  // Update previous total supply when current value changes
+  useEffect(() => {
+    if (totalProvidedLiquidity && previousTotalSupply === null) {
+      setPreviousTotalSupply(totalProvidedLiquidity);
+    }
+  }, [totalProvidedLiquidity, previousTotalSupply]);
+
+  // Calculate percentage change
+  const calculatePercentageChange = () => {
+    if (!totalProvidedLiquidity || !previousTotalSupply) return 0;
+    return ((totalProvidedLiquidity - previousTotalSupply) / previousTotalSupply) * 100;
+  };
+
+  const percentageChange = calculatePercentageChange();
+
   const { data: marketsProvidedLiquidityData } =
     useMarketsProvidedLiquidityByAccount(address as `0x${string}`);
 
@@ -141,6 +157,21 @@ export default function PortfolioPage() {
 
   const { data: totalLoanAmount, isLoading: isTotalLoanAmountLoading } =
     useTotalLoanAmount(address as `0x${string}`);
+
+  // Update previous total borrow when current value changes
+  useEffect(() => {
+    if (totalLoanAmount && previousTotalBorrow === null) {
+      setPreviousTotalBorrow(totalLoanAmount);
+    }
+  }, [totalLoanAmount, previousTotalBorrow]);
+
+  // Calculate percentage change for borrow
+  const calculateBorrowPercentageChange = () => {
+    if (!totalLoanAmount || !previousTotalBorrow) return 0;
+    return ((totalLoanAmount - previousTotalBorrow) / previousTotalBorrow) * 100;
+  };
+
+  const borrowPercentageChange = calculateBorrowPercentageChange();
 
   // console.log(totalLoanAmount);
 
@@ -247,7 +278,6 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      {/* ${formatUSDC(totalPortfolioValue)} */}
                       {isTotalProvidedLiquidityLoading ? (
                         <p>0.00</p>
                       ) : totalProvidedLiquidity ? (
@@ -256,7 +286,12 @@ export default function PortfolioPage() {
                         "0.00"
                       )}
                     </div>
-                    <div className="text-xs text-[var(--success)]">+2.4%</div>
+                    <div className={cn(
+                      "text-xs",
+                      percentageChange > 0 ? "text-[var(--success)]" : "text-[var(--danger)]"
+                    )}>
+                      {percentageChange > 0 ? "+" : ""}{percentageChange.toFixed(2)}%
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -281,7 +316,12 @@ export default function PortfolioPage() {
                         "0.00"
                       )}
                     </div>
-                    <div className="text-xs text-[var(--danger)]">-0.7%</div>
+                    <div className={cn(
+                      "text-xs",
+                      borrowPercentageChange > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"
+                    )}>
+                      {borrowPercentageChange > 0 ? "+" : ""}{borrowPercentageChange.toFixed(2)}%
+                    </div>
                   </div>
                 </div>
                 <p className="text-sm text-[var(--secondary)]">
@@ -478,7 +518,7 @@ export default function PortfolioPage() {
 
           <TabsContent value="borrow" className="mt-0 pt-0">
             {/* Borrow Positions */}
-            {borrowAssets.length > 0 && (
+            {
               <div className="card overflow-hidden">
                 <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
                   <h2 className="font-medium">Your Borrow Positions</h2>
@@ -495,22 +535,22 @@ export default function PortfolioPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="bg-[var(--card-bg-secondary)]">
-                        <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-left text-sm font-medium text-white px-4 py-3">
                           Asset
                         </th>
-                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-right text-sm font-medium text-white px-4 py-3">
                           Collateral Amount
                         </th>
-                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-right text-sm font-medium text-white px-4 py-3">
                           Borrowed Amount(KES)
                         </th>
-                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-right text-sm font-medium text-white px-4 py-3">
                           Repayment Amount(KES)
                         </th>
-                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-right text-sm font-medium text-white px-4 py-3">
                           APY
                         </th>
-                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                        <th className="text-right text-sm font-medium text-white px-4 py-3">
                           Actions
                         </th>
                       </tr>
@@ -589,7 +629,7 @@ export default function PortfolioPage() {
                   </table>
                 </div>
               </div>
-            )}
+            }
           </TabsContent>
         </div>
       </Tabs>
