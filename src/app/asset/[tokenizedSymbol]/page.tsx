@@ -458,7 +458,7 @@ export default function AssetDetailPage() {
               <TabsContent value="sell" className="mt-0 pt-0">
                 <SellAssetForm
                   assetName={asset.name}
-                  assetPrice={asset.price}
+                  assetPrice={currentPrice ?? undefined}
                   tokenizedSymbol={asset.tokenizedSymbol}
                   assetContractAddress={asset.contractAddress}
                   refetchTransactions={refetchTransactions}

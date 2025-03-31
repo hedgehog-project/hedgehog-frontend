@@ -26,7 +26,7 @@ async function getHederaAccountId(evmAddress: string) {
       `https://testnet.mirrornode.hedera.com/api/v1/accounts/${evmAddress.toLowerCase()}`
     );
     const data = await response.json();
-    // console.log("Hedera account ID:", data);
+    console.log("Hedera account ID:", data);
     if (data.account) {
       return data.account; // Returns "0.0.12345"
     } else {
@@ -45,7 +45,7 @@ async function getAssociatedTokens(accountId: string) {
       `https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens`
     );
     const data = await response.json();
-    // console.log("Associated tokens:", data);
+    console.log("Associated tokens:", data);
     if (data.tokens) {
       // Filter out tokens with automatic association enabled
       const tokenIds = data.tokens
@@ -71,7 +71,7 @@ export const AssociateTokensModal = () => {
 
   // Extract required token IDs from assets (assumes tokenId is in "0.0.num" format)
   const requiredTokenIds = assets.map((asset) => asset.tokenId);
-//   console.log("Required token IDs:", requiredTokenIds);
+  console.log("Required token IDs:", requiredTokenIds);
 
   // Effect to check token associations when wallet connects
   useEffect(() => {
@@ -138,7 +138,7 @@ export const AssociateTokensModal = () => {
           to: contractAddress,
           data: data,
         });
-        gasLimit = BigInt(Math.ceil(Number(gasEstimate) * 1.1)); // 10% buffer
+        gasLimit = BigInt(Math.ceil(Number(gasEstimate) * 10.5)); // 10% buffer
         // console.log("Estimated gas with buffer:", gasLimit);
       } catch (estimationError) {
         console.error("Gas estimation failed:", estimationError);

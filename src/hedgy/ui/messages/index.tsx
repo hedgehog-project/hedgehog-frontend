@@ -36,18 +36,21 @@ export default function Messages(){
                                     if (block.name === "DISPLAY") {
                                         return <Summary key={j} content={block.props?.content ?? ""} />;
                                     }
-                                    if (block.name === "PURCHASE_BUTTON") {
-                                        return (
-                                            <PurchaseButton 
-                                                key={j} 
-                                                assetName={block.props?.assetName} 
-                                                quantity={block.props?.quantity} 
-                                            />
-                                        );
-                                    }
                                     return null;
                                 })}
                             </div>
+                            {message.blocks.map((block, j) => {
+                                if (block.name === "PURCHASE_BUTTON") {
+                                    return (
+                                        <PurchaseButton 
+                                            key={j} 
+                                            assetName={block.props?.assetName} 
+                                            quantity={block.props?.quantity} 
+                                        />
+                                    );
+                                }
+                                return null;
+                            })}
                             <span className="text-xs text-[var(--muted-foreground)] mt-1">
                                 {format(timestamp, 'h:mm a')}
                             </span>

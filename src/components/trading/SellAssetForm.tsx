@@ -39,7 +39,6 @@ export default function SellAssetForm({
     },
   });
 
-  const [isKes, setIsKes] = useState(false);
   const { isConnected, address } = useAccount();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +70,7 @@ export default function SellAssetForm({
     const value = e.target.value;
     setValue("amount", value);
     if (value && assetPrice) {
+      // Calculate quantity by dividing KES amount by asset price
       const calculatedQuantity = Number(value) / assetPrice;
       setValue("quantity", Math.round(calculatedQuantity).toFixed(2));
     } else {
@@ -82,7 +82,9 @@ export default function SellAssetForm({
     const value = e.target.value;
     setValue("quantity", value);
     if (value && assetPrice) {
-      setValue("amount", (Number(value) * assetPrice).toFixed(0));
+      // Calculate KES amount by multiplying quantity with asset price
+      const kesAmount = (Number(value) * assetPrice).toFixed(0);
+      setValue("amount", kesAmount);
     } else {
       setValue("amount", "");
     }
@@ -259,24 +261,12 @@ export default function SellAssetForm({
         <div className="mb-4">
           <div className="flex justify-between items-center">
             <label htmlFor="sell-amount" className="text-sm mb-1 block">
-              You&apos;ll Receive ({isKes ? 'KES' : 'TUSDC'})
+              You&apos;ll Receive (KES)
             </label>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <span className="text-[var(--secondary)] text-xs">Currency:</span>
-                <button
-                  type="button"
-                  onClick={() => setIsKes(!isKes)}
-                  className="text-xs px-2 py-1 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/20 transition-colors"
-                >
-                  {isKes ? 'KES' : 'USDC'}
-                </button>
-              </div>
-            </div>
           </div>
           <div className="flex rounded-md overflow-hidden border border-[var(--border-color)]">
             <div className="bg-[var(--border-color)]/20 flex items-center px-2">
-              <span className="text-[var(--secondary)] text-sm">{isKes ? 'KES' : 'USDC'}</span>
+              <span className="text-[var(--secondary)] text-sm">KES</span>
             </div>
             <input
               id="sell-amount"
@@ -293,11 +283,11 @@ export default function SellAssetForm({
         <div className="mb-4 p-3 rounded-md bg-[var(--border-color)]/10">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Price</span>
-            <span>{isKes ? 'KES' : 'USDC'} {assetPrice ? (isKes ? (assetPrice * 129).toLocaleString('en-US', { maximumFractionDigits: 2 }) : assetPrice.toLocaleString('en-US', { maximumFractionDigits: 2 })) : "0.00"}</span>
+            <span>KES {assetPrice ? assetPrice.toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
           </div>
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
-            <span>{isKes ? 'KES' : 'USDC'} {amount ? (isKes ? parseFloat(amount).toLocaleString('en-US', { maximumFractionDigits: 0 }) : parseFloat(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })) : "0"}</span>
+            <span>KES {amount ? parseFloat(amount).toLocaleString('en-US', { maximumFractionDigits: 0 }) : "0"}</span>
           </div>
         </div>
         
