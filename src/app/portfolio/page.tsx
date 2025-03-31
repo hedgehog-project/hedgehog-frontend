@@ -25,6 +25,7 @@ import {
 import Image from "next/image";
 import { useLoans, useTotalLoanAmount } from "@/hooks/useTotalLoanAmount";
 import { AssetBalance } from "@/components/portfolio/AssetBalance";
+import { useLoanRepaymentsByAccount } from "@/hooks/useLoanRepayments";
 
 // Constants
 // const USD_TO_KES_RATE = 129;
@@ -86,6 +87,15 @@ interface Loan {
   timestamp: number;
 }
 
+interface BorrowPosition {
+  assetId: string;
+  amount: number;
+  valueUSD: number;
+  repaymentAmount: number;
+  apy: number;
+  asset?: typeof assets[0];
+}
+
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("supply");
   // const [showKesValue, setShowKesValue] = useState(false);
@@ -95,6 +105,8 @@ export default function PortfolioPage() {
     contractAddress: string;
     name: string;
     symbol: string;
+    borrowedAmount: number;
+    repaymentAmount: number;
   } | null>(null);
   const { address } = useAccount();
   const router = useRouter();
@@ -121,15 +133,16 @@ export default function PortfolioPage() {
   const { data: marketsProvidedLiquidityData } =
     useMarketsProvidedLiquidityByAccount(address as `0x${string}`);
 
-  console.log(marketsProvidedLiquidityData);
+  // console.log(marketsProvidedLiquidityData);
 
   const { data: loansData } = useLoans(address as `0x${string}`);
 
-  console.log(loansData);
+  console.log("User loans:",loansData);
 
-  const { data: totalLoanAmount, isLoading: isTotalLoanAmountLoading } = useTotalLoanAmount(address as `0x${string}`);
+  const { data: totalLoanAmount, isLoading: isTotalLoanAmountLoading } =
+    useTotalLoanAmount(address as `0x${string}`);
 
-  console.log(totalLoanAmount);
+  // console.log(totalLoanAmount);
 
   // Find the assets for the positions and combine amounts for same asset
   const supplyAssets =
@@ -163,16 +176,56 @@ export default function PortfolioPage() {
       return acc;
     }, [] as SupplyPosition[]) || [];
 
-  console.log(supplyAssets);
+  const { data: loanRepayments } = useLoanRepaymentsByAccount(address as `0x${string}`);
+  console.log("Loan Repayments:", loanRepayments);
 
-  const borrowAssets = userPortfolio.borrowPositions.map((position) => {
-    const asset = assets.find((a) => a.id === position.assetId);
-    return { ...position, asset };
-  });
+  // Process loan data to group by collateral asset and find corresponding asset details
+  const borrowAssets = (loansData || []).reduce<BorrowPosition[]>((acc, loan) => {
+    // Skip if this loan has been repaid
+    const isRepaid = loanRepayments?.some(repayment => repayment.loanId === loan.id);
+    if (isRepaid) {
+      // console.log("Filtering out repaid loan:", loan.id);
+      return acc;
+    }
+
+    const asset = assets.find((a) => a.contractAddress === loan.collateralAsset);
+    
+    if (!asset) {
+      // console.log("No asset found for collateral:", loan.collateralAsset);
+      return acc;
+    }
+
+    // Find if we already have this asset in our accumulator
+    const existingPosition = acc.find(
+      (p: BorrowPosition) => p.assetId === asset.id
+    );
+
+    if (existingPosition) {
+      // Update existing position with combined amounts
+      existingPosition.amount += loan.collateralAmount;
+      existingPosition.valueUSD += loan.loanAmountUSDC / 1e6;
+      existingPosition.repaymentAmount += loan.repaymentAmount / 1e6;
+      existingPosition.apy = asset.borrowApy;
+    } else {
+      // Add new position
+      acc.push({
+        assetId: asset.id,
+        amount: loan.collateralAmount,
+        valueUSD: loan.loanAmountUSDC / 1e6,
+        repaymentAmount: loan.repaymentAmount / 1e6,
+        apy: asset.borrowApy,
+        asset,
+      });
+    }
+
+    return acc;
+  }, []);
+
+  // console.log("Final borrow assets:", borrowAssets);
 
   const getUniqueCollateralAssetsCount = (loans: Loan[] | undefined) => {
     if (!loans) return 0;
-    return new Set(loans.map(loan => loan.collateralAsset)).size;
+    return new Set(loans.map((loan) => loan.collateralAsset)).size;
   };
 
   return (
@@ -194,7 +247,7 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                       {/* ${formatUSDC(totalPortfolioValue)} */}
+                      {/* ${formatUSDC(totalPortfolioValue)} */}
                       {isTotalProvidedLiquidityLoading ? (
                         <p>0.00</p>
                       ) : totalProvidedLiquidity ? (
@@ -222,9 +275,7 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold">
-                      {isTotalLoanAmountLoading ? (
-                        <p>0.00</p>
-                      ) : totalLoanAmount ? (
+                      {isTotalLoanAmountLoading ? "0.00" : totalLoanAmount ? (
                         " " + formatUSDC(totalLoanAmount)
                       ) : (
                         "0.00"
@@ -260,7 +311,6 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 </div>
-              
               </div>
             </div>
           </div>
@@ -298,11 +348,18 @@ export default function PortfolioPage() {
               </div>
             </div>
 
-            {/* Asset Balances below */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-              {assets.map((asset) => (
-                <AssetBalance key={asset.id} asset={asset} address={address as `0x${string}`} />
-              ))}
+            {/* Asset Balances below with fixed height and scrollbar */}
+
+            <div className="h-[250px] overflow-y-auto space-y-4 pr-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto space-y-4 pr-2">
+                {assets.map((asset) => (
+                  <AssetBalance
+                    key={asset.id}
+                    asset={asset}
+                    address={address as `0x${string}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -386,10 +443,10 @@ export default function PortfolioPage() {
                         <td className="px-4 py-4 text-right">
                           {formatUSDC(position.amount / Math.pow(10, 6))}
                         </td>
-                       
+
                         <td className="px-4 py-4 text-right text-[var(--primary)]">
                           {position.asset?.apy
-                            ? `${(position.asset.apy).toFixed(2)}%`
+                            ? `${position.asset.apy.toFixed(2)}%`
                             : "N/A"}
                         </td>
                         {/* Add a button to withdraw */}
@@ -397,9 +454,12 @@ export default function PortfolioPage() {
                           <button
                             onClick={() => {
                               setSelectedAsset({
-                                contractAddress: position.asset?.contractAddress || "",
+                                contractAddress:
+                                  position.asset?.contractAddress || "",
                                 name: position.asset?.name || "",
                                 symbol: position.asset?.symbol || "",
+                                borrowedAmount: 0,
+                                repaymentAmount: 0
                               });
                               setIsWithdrawSheetOpen(true);
                             }}
@@ -428,7 +488,7 @@ export default function PortfolioPage() {
                   >
                     Borrow More
                     <ArrowRight className="w-4 h-4" />
-                  </button>{" "}
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -439,10 +499,13 @@ export default function PortfolioPage() {
                           Asset
                         </th>
                         <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                          Debt
+                          Collateral Amount
                         </th>
                         <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
-                          Value (USD)
+                          Borrowed Amount(KES)
+                        </th>
+                        <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                          Repayment Amount(KES)
                         </th>
                         <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
                           APY
@@ -481,13 +544,19 @@ export default function PortfolioPage() {
                             </div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div>${position.amount.toLocaleString()}</div>
+                            <div>{position.amount.toLocaleString()}</div>
                             <div className="text-xs text-[var(--secondary)]">
-                              {position.asset?.symbol}
+                              {position.asset?.tokenizedSymbol}
                             </div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div>${position.valueUSD.toLocaleString()}</div>
+                            <div> {position.valueUSD.toLocaleString()} <span className="text-[var(--secondary)] text-xs">KES</span></div>
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <div> {position.repaymentAmount.toLocaleString()} <span className="text-[var(--secondary)] text-xs">KES</span></div>
+                            {/* <div className="text-xs text-[var(--danger)]">
+                              +{((position.repaymentAmount - position.valueUSD) / position.valueUSD * 100).toFixed(2)}%
+                            </div> */}
                           </td>
                           <td className="px-4 py-4 text-right">
                             <div className="text-[var(--danger)]">
@@ -503,6 +572,8 @@ export default function PortfolioPage() {
                                       position.asset?.contractAddress || "",
                                     name: position.asset?.name || "",
                                     symbol: position.asset?.symbol || "",
+                                    borrowedAmount: position.valueUSD,
+                                    repaymentAmount: position.repaymentAmount
                                   });
                                   setIsRepaySheetOpen(true);
                                 }}
@@ -554,11 +625,8 @@ export default function PortfolioPage() {
           <div className="mt-6">
             <RepayForm
               assetAddress={selectedAsset?.contractAddress}
-              outstandingDebt={
-                borrowAssets.find(
-                  (b) => b.assetId === selectedAsset?.symbol.toLowerCase()
-                )?.valueUSD || 0
-              }
+              outstandingDebt={selectedAsset?.borrowedAmount}
+              repaymentAmount={selectedAsset?.repaymentAmount}
             />
           </div>
         </SheetContent>

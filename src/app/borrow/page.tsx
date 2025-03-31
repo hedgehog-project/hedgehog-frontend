@@ -4,11 +4,16 @@ import { useState } from "react";
 import { assets } from "@/data/marketData";
 import { Search, Info, ArrowUpDown, Filter } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
-import { cn } from "@/lib/utils";
+import { cn, formatUSDC } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BorrowForm from "@/components/lending/BorrowForm";
 import RepayForm from "@/components/lending/RepayForm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useAssetsProvidedLiquidityByAccount, useProvidedLiquidity } from "@/hooks/useProvidedLiquidity";
+import { useAccount } from "wagmi";
+import AssetBorrowLimit from "@/components/lending/AssetBorrowLimit";
+import TotalBorrowLimit from "@/components/lending/TotalBorrowLimit";
+import { useLoanRepaymentsByAccount } from "@/hooks/useLoanRepayments";
 
 interface Asset {
   id: string;
@@ -21,15 +26,8 @@ interface Asset {
   logoUrl: string;
   change: number;
   contractAddress: string;
+  collateralFactor: number;
 }
-
-// Sample user data - in a real app this would come from an API
-const userBorrowStats = {
-  borrowLimit: 12500,
-  totalBorrowed: 3400.75,
-  borrowLimitUsed: 0.272, // 27.2%
-  netAPY: 1.8
-};
 
 export default function BorrowPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,20 +35,46 @@ export default function BorrowPage() {
   const [activeTab, setActiveTab] = useState("borrow");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const { address } = useAccount();
   
+  const {
+    data: assetsProvidedLiquidityByAccount,
+  } = useAssetsProvidedLiquidityByAccount(address as `0x${string}`);
+
+  // Calculate total borrow limit from all assets
+  const totalBorrowLimit = assetsProvidedLiquidityByAccount?.reduce((total, item) => {
+    const asset = assets.find(a => a.contractAddress === item.asset);
+    if (!asset) return total;
+    const userProvidedAmount = Number(item.amount) / 1e6;
+    return total + (userProvidedAmount * (asset.collateralFactor || 0));
+  }, 0) || 0;
+
+  // Sample user data - in a real app this would come from an API
+  const userBorrowStats = {
+    borrowLimit: totalBorrowLimit,
+    totalBorrowed: 3400.75,
+    borrowLimitUsed: totalBorrowLimit > 0 ? 3400.75 / totalBorrowLimit : 0,
+    netAPY: 1.8
+  };
+
+  console.log(assetsProvidedLiquidityByAccount);
+
   // Filter assets based on search term
-  const filteredAssets = assets.filter(asset => 
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAssets = assets.filter(
+    (asset) =>
+      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   // Sort assets based on selected criteria
   const sortedAssets = [...filteredAssets].sort((a, b) => {
     switch (sortBy) {
       case "apy":
-        return b.borrowApy - a.borrowApy;
-      case "available":
-        return b.availableToBorrow - a.availableToBorrow;
+        return b.apy - a.apy;
+      case "liquidity":
+        return b.liquidity - a.liquidity;
+      case "price":
+        return b.price - a.price;
       case "alphabetical":
         return a.name.localeCompare(b.name);
       default:
@@ -58,10 +82,30 @@ export default function BorrowPage() {
     }
   });
 
+    // Get all asset addresses
+    const assetAddresses = sortedAssets
+    .map((asset) => asset.contractAddress)
+    .filter((address): address is string => !!address);
+
+  // Fetch provided liquidity for all assets
+  const { data: providedLiquidityData } = useProvidedLiquidity(assetAddresses);
+
+  // Helper function to get total provided liquidity
+  const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
+    if (!providedLiquidityData?.[assetTokenAddress]) return 0;
+    return providedLiquidityData[assetTokenAddress].reduce(
+      (sum, item) => sum + item.amount,
+      0
+    );
+  };
+
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsSheetOpen(true);
   };
+
+  const { data: loanRepayments } = useLoanRepaymentsByAccount(address as `0x${string}`);
+  console.log(loanRepayments);
   
   return (
     <div className="space-y-8">
@@ -75,7 +119,13 @@ export default function BorrowPage() {
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">${userBorrowStats.borrowLimit.toLocaleString()}</span>
+            <TotalBorrowLimit 
+              assets={sortedAssets.map(asset => ({
+                contractAddress: asset.contractAddress,
+                collateralFactor: asset.collateralFactor || 0
+              }))}
+              userAddress={address}
+            />
           </div>
           <p className="text-xs text-[var(--secondary)] mt-1">Based on your collateral</p>
         </div>
@@ -86,7 +136,7 @@ export default function BorrowPage() {
             <Info className="w-4 h-4 text-[var(--secondary)]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold">${userBorrowStats.totalBorrowed.toLocaleString()}</span>
+            <span className="text-2xl font-semibold">{userBorrowStats.totalBorrowed.toLocaleString()} <span className="text-xs text-[var(--secondary)]">KES</span></span>
           </div>
           <p className="text-xs text-[var(--secondary)] mt-1">Across all assets</p>
         </div>
@@ -181,67 +231,115 @@ export default function BorrowPage() {
           <h2 className="font-medium">Assets to Borrow</h2>
         </div>
         
-        <div className="overflow-x-auto">
+     
+         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--card-bg-secondary)]">
-                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">Asset</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Available to Borrow</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Borrow APY</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Price</th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">Action</th>
+                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Asset
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Liquidity(KES)
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Borrow Limit(KES)
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Borrow APY(%)
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Collateral Factor(%)
+                </th>
+                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
-              {sortedAssets.map((asset) => (
-                <tr 
-                  key={asset.id} 
-                  className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
-                  onClick={() => handleAssetClick(asset)}
-                >
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <AssetImage 
-                        logoUrl={asset.logoUrl} 
-                        symbol={asset.symbol} 
-                        size={8} 
-                      />
-                      <div>
-                        <div className="font-medium">{asset.name}</div>
-                        <div className="text-xs text-[var(--secondary)]">
-                          {asset.symbol}
-                          {asset.tokenizedSymbol && (
-                            <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
-                              {asset.tokenizedSymbol}
-                            </span>
-                          )}
+              {sortedAssets.map((asset) => {
+                const providedLiquidity = getTotalProvidedLiquidity(
+                  asset.contractAddress || ""
+                );
+                // Get user's provided liquidity for this asset
+                const userProvidedLiquidity = assetsProvidedLiquidityByAccount?.find(
+                  (item) => item.asset === asset.contractAddress
+                );
+                const userProvidedAmount = userProvidedLiquidity 
+                  ? Number(userProvidedLiquidity.amount) / 1e6 
+                  : 0;
+
+                return (
+                  <tr
+                    key={asset.id}
+                    className="border-b border-[var(--border-color)] last:border-0 cursor-pointer hover:bg-[var(--border-color)]/5"
+                    onClick={() => handleAssetClick(asset)}
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <AssetImage
+                          logoUrl={asset.logoUrl}
+                          symbol={asset.symbol}
+                          size={8}
+                        />
+                        <div>
+                          <div className="font-medium">{asset.name}</div>
+                          <div className="text-xs text-[var(--secondary)]">
+                            {asset.symbol}
+                            {asset.tokenizedSymbol && (
+                              <span className="ml-1 text-[11px] text-[var(--secondary)]/70">
+                                {asset.tokenizedSymbol}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div>${asset.availableToBorrow?.toLocaleString() || "0"}</div>
-                    <div className="text-xs text-[var(--secondary)]">{(asset.availableToBorrow / asset.price).toFixed(2)} {asset.symbol}</div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div className="text-[var(--danger)]">{asset.borrowApy?.toFixed(1) || "0.0"}%</div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div>${asset.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    <div className="text-xs text-[var(--secondary)]">
-                      {asset.change >= 0 ? 
-                        <span className="text-[var(--success)]">+{asset.change.toFixed(2)}%</span> : 
-                        <span className="text-[var(--danger)]">{asset.change.toFixed(2)}%</span>
-                      }
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white">
-                      Borrow
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      {providedLiquidity > 0 ? (
+                        <span className="ml-2">
+                          {formatUSDC(providedLiquidity)} <span className="text-xs text-[var(--secondary)]">KES</span>
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-[var(--secondary)]">
+                          No liquidity
+                        </span>
+                      )}
+                      <div className="text-xs text-[var(--secondary)]">
+                        {userProvidedAmount > 0 && (
+                          <span className="ml-2 text-[var(--success)]">
+                            {formatUSDC(userProvidedAmount)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <AssetBorrowLimit
+                        assetAddress={asset.contractAddress}
+                        collateralFactor={asset.collateralFactor || 0}
+                        userAddress={address}
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="text-[var(--success)]">
+                        {asset.apy?.toFixed(2)}%
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div>
+                        {asset.collateralFactor
+                          ? (asset.collateralFactor * 100).toFixed(0) + "%"
+                          : "0%"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
+                        Borrow
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -330,7 +428,7 @@ export default function BorrowPage() {
                       activeTab === "borrow" ? "border-b-2 border-[var(--primary)]" : ""
                     }`}
                   >
-                    Borrow {selectedAsset?.symbol}
+                    Borrow 
                   </TabsTrigger>
                   <TabsTrigger 
                     value="repay" 
@@ -338,17 +436,23 @@ export default function BorrowPage() {
                       activeTab === "repay" ? "border-b-2 border-[var(--danger)]" : ""
                     }`}
                   >
-                    Repay {selectedAsset?.symbol}
+                    Repay 
                   </TabsTrigger>
                 </TabsList>
               </div>
               
               <div className="py-4">
                 <TabsContent value="borrow" className="mt-0 pt-0">
-                  <BorrowForm 
-                    borrowLimit={userBorrowStats.borrowLimit - userBorrowStats.totalBorrowed} 
-                    assetAddress={selectedAsset?.contractAddress}
-                  />
+                  {selectedAsset && (
+                    <BorrowForm 
+                     
+                      assetAddress={selectedAsset.contractAddress}
+                      assetName={selectedAsset.name}
+                      collateralFactor={selectedAsset.collateralFactor || 0}
+                      userAddress={address}
+                      tokenizedSymbol={selectedAsset.tokenizedSymbol}
+                    />
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="repay" className="mt-0 pt-0">

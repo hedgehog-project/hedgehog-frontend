@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/db";
-import { loans } from "@/db/schema";
+import { loans, loanRepayment } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
 export type Loan = {
@@ -12,6 +12,14 @@ export type Loan = {
     collateralAmount: number;
     liquidationPrice: number;
     repaymentAmount: number;
+    timestamp: number;
+}
+
+export type LoanRepayment = {
+    id: string;
+    loanId: string;
+    token: string;
+    account: string;
     timestamp: number;
 }
 
@@ -27,6 +35,44 @@ export async function getLoans(account?: string) {
         return results as Loan[];
     } catch (error) {
         console.error('Error fetching loans:', error);
+        return [];
+    }
+}
+
+export async function getLoanRepaymentsByAccount(account: string) {
+    try {
+        const query = db
+            .select()
+            .from(loanRepayment)
+            .where(eq(loanRepayment.account, account))
+            .orderBy(desc(loanRepayment.timestamp));
+
+        const results = await query;
+        return results as LoanRepayment[];
+    } catch (error) {
+        console.error('Error fetching loan repayments by account:', error);
+        return [];
+    }
+}
+
+export async function getLoanRepayments(account?: string, loanId?: string) {
+    try {
+        const query = db
+            .select()
+            .from(loanRepayment)
+            .where(
+                account 
+                    ? eq(loanRepayment.account, account)
+                    : loanId 
+                        ? eq(loanRepayment.loanId, loanId)
+                        : undefined
+            )
+            .orderBy(desc(loanRepayment.timestamp));
+
+        const results = await query;
+        return results as LoanRepayment[];
+    } catch (error) {
+        console.error('Error fetching loan repayments:', error);
         return [];
     }
 }

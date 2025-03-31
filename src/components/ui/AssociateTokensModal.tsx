@@ -45,7 +45,7 @@ async function getAssociatedTokens(accountId: string) {
       `https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens`
     );
     const data = await response.json();
-    console.log("Associated tokens:", data);
+    // console.log("Associated tokens:", data);
     if (data.tokens) {
       // Filter out tokens with automatic association enabled
       const tokenIds = data.tokens
@@ -71,7 +71,7 @@ export const AssociateTokensModal = () => {
 
   // Extract required token IDs from assets (assumes tokenId is in "0.0.num" format)
   const requiredTokenIds = assets.map((asset) => asset.tokenId);
-  console.log("Required token IDs:", requiredTokenIds);
+//   console.log("Required token IDs:", requiredTokenIds);
 
   // Effect to check token associations when wallet connects
   useEffect(() => {
@@ -80,11 +80,11 @@ export const AssociateTokensModal = () => {
         const accountId = await getHederaAccountId(address);
         if (accountId) {
           const associatedTokens = await getAssociatedTokens(accountId);
-          console.log("Associated tokens:", associatedTokens);
+        //   console.log("Associated tokens:", associatedTokens);
           const allAssociated = requiredTokenIds.every((tokenId) =>
             associatedTokens.includes(tokenId)
           );
-          console.log("All associated:", allAssociated);
+        //   console.log("All associated:", allAssociated);
           if (!allAssociated) {
             setIsOpen(true); // Show modal if any token is not associated
           } else {
@@ -139,7 +139,7 @@ export const AssociateTokensModal = () => {
           data: data,
         });
         gasLimit = BigInt(Math.ceil(Number(gasEstimate) * 1.1)); // 10% buffer
-        console.log("Estimated gas with buffer:", gasLimit);
+        // console.log("Estimated gas with buffer:", gasLimit);
       } catch (estimationError) {
         console.error("Gas estimation failed:", estimationError);
         toast({

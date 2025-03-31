@@ -41,12 +41,12 @@ export const AssetBalance = ({ asset, address }: AssetBalanceProps) => {
             symbol={asset.symbol}
             size={8}
           />
-          <span className="font-medium">
+          <span className="font-normal">
             {asset.tokenizedSymbol}
           </span>
         </div>
         <div className="text-right">
-          <div className="text-lg font-semibold">
+          <div className="text-xl font-semibold">
             {formatAssetBalance(balance.value)}
           </div>
           <div className="text-xs text-[var(--success)]">

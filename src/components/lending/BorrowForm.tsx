@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, usePublicClient } from "wagmi";
 import { Wallet, Loader2 } from "lucide-react";
-import { LENDER_CONTRACT_ADDRESS, TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
+import { ISSUER_CONTRACT_ADDRESS, KES_TOKEN_ADDRESS, LENDER_CONTRACT_ADDRESS } from "@/config/contracts";
 import lenderABI from "@/abi/Lender.json";
 import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
@@ -11,21 +11,33 @@ import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
 import { Abi } from "viem";
 import { useForm } from "react-hook-form";
+import { adminClient } from "@/lib/admin";
+import { encodeFunctionData } from "viem";
+import issuerABI from "@/abi/Issuer.json";
+import { useAssetPrice } from "@/hooks/usePrices";
+
 
 interface BorrowFormProps {
   assetAddress?: string;
-  borrowLimit?: number;
+  assetName?: string;
+  collateralFactor: number;
+  userAddress: `0x${string}` | undefined;
+  tokenizedSymbol?: string;
 }
 
 interface BorrowFormData {
   amount: string;
+  
 }
 
 export default function BorrowForm({ 
   assetAddress,
-  borrowLimit = 0,
+  assetName,
+  collateralFactor,
+  userAddress,
+  tokenizedSymbol
 }: BorrowFormProps) {
-  const { register, handleSubmit, setValue, watch } = useForm<BorrowFormData>({
+  const { handleSubmit, setValue, watch } = useForm<BorrowFormData>({
     defaultValues: {
       amount: "",
     },
@@ -35,13 +47,38 @@ export default function BorrowForm({
   const { toast } = useToast();
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const publicClient = usePublicClient();
 
   // Get USDC balance for the connected wallet
-  const { refetch: refetchUsdcBalance } = useBalance({
+  const { refetch: refetchKesBalance } = useBalance({
     address: address,
-    token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
+    token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
-  
+
+  const { data: balance } = useBalance({
+    address: userAddress,
+    token: assetAddress as `0x${string}`,
+  });
+
+  const { data: price } = useAssetPrice(assetAddress as `0x${string}`);
+
+  const borrowLimit = Number(balance?.value) * Number(price) * collateralFactor;
+
+  // Handle input change with validation
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty value or numbers with up to 2 decimal places
+    if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+      const numValue = parseFloat(value);
+      if (value === "" || numValue <= borrowLimit) {
+        setValue("amount", value);
+      } else {
+        // If value exceeds borrow limit, set it to the maximum allowed
+        setValue("amount", borrowLimit.toString());
+      }
+    }
+  };
+
   const { writeContractAsync } = useWriteContract();
   const { data: borrowHash } = useWriteContract();
   
@@ -111,8 +148,58 @@ export default function BorrowForm({
     
     try {
       // Calculate the amount in KES (6 decimals)
-      const amountInKes = BigInt(Math.floor(Number(data.amount) / 129 * 1e6));
+      const amountInKes = (Math.floor(Number(data.amount) * 1e6));
+      const quantity = Math.floor(Number(amountInKes)/Number(price));
+      const roundedQuantity = Math.round(quantity);
+      console.log(roundedQuantity);
       
+      // Grant KYC to the user using admin client
+      if (!publicClient) {
+        toast({
+          title: "Error",
+          description: "Failed to initialize public client.",
+          className: "bg-red-500 text-white border-none",
+        });
+        return;
+      }
+
+      try {
+        const data = encodeFunctionData({
+          abi: issuerABI.abi,
+          functionName: 'grantKYC',
+          args: [assetName, address],
+        });
+
+        const tx = {
+          to: formatAddress(ISSUER_CONTRACT_ADDRESS),
+          data,
+        };
+      
+        const grantKycHash = await adminClient.sendTransaction(tx);
+
+        toast({
+          title: "KYC Grant in progress",
+          description: "Waiting for KYC grant to be confirmed...",
+          className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+        });
+
+        await publicClient?.waitForTransactionReceipt({ hash: grantKycHash });
+
+        toast({
+          title: "KYC Grant successful",
+          description: "KYC has been granted to your account.",
+          className: "bg-green-500/50 border-green-500 text-white border-none",
+        });
+      } catch (error) {
+        console.error('KYC Grant error:', error);
+        toast({
+          title: "KYC Grant Failed",
+          description: error instanceof Error ? error.message : "Failed to grant KYC. Please try again.",
+          className: "bg-red-500 text-white border-none",
+        });
+        return;
+      }
+
       // First approve KES spending using HTS
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
@@ -120,52 +207,57 @@ export default function BorrowForm({
         functionName: "approve",
         args: [
           assetAddress, // Token address
-          LENDER_CONTRACT_ADDRESS, // Spender address
+          formatAddress(LENDER_CONTRACT_ADDRESS), // Spender address
           amountInKes
         ],
       });
 
       toast({
-        title: "Approval initiated",
-        description: `Please wait for approval to complete before borrowing...`,
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
       });
 
-      // Wait for approval transaction to be mined
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await publicClient?.waitForTransactionReceipt({ hash: approvalHash });
 
-      if (approvalHash) {
-        // Then take out the loan
-        const hash = await writeContractAsync({
-          ...contractConfig,
-          args: [formatAddress(assetAddress), amountInKes],
-        });
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
-        toast({
-          title: "Borrow initiated",
-          description: `Transaction hash: ${hash}`,
-        });
+      // Then take out the loan
+      const borrowHash = await writeContractAsync({
+        ...contractConfig,
+        args: [formatAddress(assetAddress), BigInt(amountInKes)],
+      });
 
-        // Wait for borrow transaction to be mined
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      toast({
+        title: "Borrow in progress",
+        description: "Waiting for borrow transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
 
-        setValue("amount", "");
-        
-        toast({
-          title: "Borrow successful",
-          description: `You have successfully borrowed ${data.amount} KES.`,
-        });
-      }
+      await publicClient?.waitForTransactionReceipt({ hash: borrowHash });
+
+      setValue("amount", "");
+      
+      toast({
+        title: "Borrow successful",
+        description: `You have successfully borrowed ${data.amount} KES.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
       
     } catch (error) {
       console.error("Borrow error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate borrow. Please try again.",
-        variant: "destructive"
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to complete the transaction.",
+        className: "bg-red-500 text-white border-none",
       });
     } finally {
       setIsLoading(false);
-      refetchUsdcBalance();
+      refetchKesBalance();
     }
   };
 
@@ -182,7 +274,7 @@ export default function BorrowForm({
             </label>
             <div className="flex items-end">
               <span className="text-[var(--secondary)] text-xs pr-1">Borrow Limit: </span>
-              <span className="text-xs">${borrowLimit.toLocaleString()}</span>
+              <span className="text-xs font-semibold">{borrowLimit.toLocaleString()}</span>
             </div>
           </div>
           
@@ -193,7 +285,8 @@ export default function BorrowForm({
             <input
               id="borrow-amount"
               type="text"
-              {...register("amount")}
+              value={watch("amount")}
+              onChange={handleAmountChange}
               className="flex-1 bg-transparent outline-none py-2 px-3 w-full"
               placeholder="0"
               disabled={isSubmitting}
@@ -222,14 +315,18 @@ export default function BorrowForm({
             <span className="text-[var(--secondary)]">Total</span>
             <span>KES {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
           </div>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-[var(--secondary)]">Borrow Collateral</span>
+            <span>{Number(watch("amount"))/Number(price)} {tokenizedSymbol}</span>
+          </div>
         </div>
         
         <button
           type="submit"
           className={cn(
             "w-full py-3 rounded-md font-medium",
-            "bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90",
-            buttonDisabled && "opacity-70 cursor-not-allowed"
+            "bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]",
+            buttonDisabled && "opacity-50 cursor-not-allowed"
           )}
           disabled={buttonDisabled}
         >

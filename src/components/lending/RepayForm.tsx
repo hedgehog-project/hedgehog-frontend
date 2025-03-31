@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useBalance, usePublicClient } from "wagmi";
 import { Wallet, Loader2 } from "lucide-react";
-import { LENDER_CONTRACT_ADDRESS, TUSDC_TOKEN_ADDRESS} from "@/config/contracts";
+import { LENDER_CONTRACT_ADDRESS, KES_TOKEN_ADDRESS} from "@/config/contracts";
 import lenderABI from "@/abi/Lender.json";
 import htsABI from "@/abi/HederaTokenService.json";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,8 @@ import { Abi } from "viem";
 interface RepayFormProps {
   assetAddress?: string;
   outstandingDebt?: number;
+  repaymentAmount?: number;
+  defaultAmount?: number;
 }
 
 interface RepayFormData {
@@ -24,10 +26,12 @@ interface RepayFormData {
 export default function RepayForm({ 
   assetAddress,
   outstandingDebt = 0,
+  repaymentAmount = 0,
+  defaultAmount = 0,
 }: RepayFormProps) {
   const { register, handleSubmit, setValue, watch } = useForm<RepayFormData>({
     defaultValues: {
-      amount: "",
+      amount: defaultAmount.toString(),
     },
   });
 
@@ -35,16 +39,17 @@ export default function RepayForm({
   const { toast } = useToast();
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const publicClient = usePublicClient();
 
-  // Get USDC balance for the connected wallet
-  const { data: usdcBalance, refetch: refetchUsdcBalance } = useBalance({
+  // Get KES balance for the connected wallet
+  const { data: kesBalance, refetch: refetchKesBalance } = useBalance({
     address: address,
-    token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
+    token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
 
-  // Format USDC balance with 6 decimals
-  const formattedUsdcBalance = usdcBalance ? 
-    (Number(usdcBalance.value) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
+  // Format KES balance with 6 decimals
+  const formattedKesBalance = kesBalance ? 
+    (Number(kesBalance.value) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
     "0.00";
   
   const { writeContractAsync } = useWriteContract();
@@ -94,10 +99,10 @@ export default function RepayForm({
       return;
     }
 
-    if (Number(data.amount) > outstandingDebt) {
+    if (Number(data.amount) > repaymentAmount) {
       toast({
         title: "Exceeds Outstanding Debt",
-        description: `You only have ${outstandingDebt.toLocaleString()} USDC of debt to repay.`,
+        description: `You only have ${repaymentAmount.toLocaleString()} KES of debt to repay.`,
         variant: "destructive"
       });
       return;
@@ -113,11 +118,20 @@ export default function RepayForm({
     }
 
     const amountNumber = Number(data.amount);
-    if (amountNumber > Number(formattedUsdcBalance)) {
+    if (amountNumber > Number(formattedKesBalance)) {
       toast({
         title: "Insufficient Balance",
-        description: `You only have ${formattedUsdcBalance} USDC available.`,
+        description: `You only have ${formattedKesBalance} KES available.`,
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (!publicClient) {
+      toast({
+        title: "Error",
+        description: "Failed to initialize public client.",
+        className: "bg-red-500 text-white border-none",
       });
       return;
     }
@@ -125,62 +139,67 @@ export default function RepayForm({
     setIsLoading(true);
     
     try {
-      // Calculate the amount in USDC (6 decimals)
-      const amountInUsdc = BigInt(Math.floor(amountNumber * 1e6));
+      // Calculate the amount in KES (6 decimals)
+      const amountInKes = BigInt(Math.floor(amountNumber * 1e6));
       
-      // First approve USDC spending using HTS
+      // First approve KES spending using HTS
       const approvalHash = await writeContractAsync({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
         abi: htsABI.abi as Abi,
         functionName: "approve",
         args: [
-          TUSDC_TOKEN_ADDRESS, // USDC Token address
+          KES_TOKEN_ADDRESS, // KES Token address
           LENDER_CONTRACT_ADDRESS, // Spender address
-          amountInUsdc
+          amountInKes
         ],
       });
 
       toast({
-        title: "Approval initiated",
-        description: `Please wait for approval to complete before repaying...`,
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
       });
 
-      // Wait for approval transaction to be mined
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await publicClient.waitForTransactionReceipt({ hash: approvalHash });
 
-      if (approvalHash) {
-        // Then repay the loan
-        const hash = await writeContractAsync({
-          ...contractConfig,
-          args: [formatAddress(assetAddress)],
-        });
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
-        toast({
-          title: "Repayment initiated",
-          description: `Transaction hash: ${hash}`,
-        });
+      // Then repay the loan
+      const repayHash = await writeContractAsync({
+        ...contractConfig,
+        args: [formatAddress(assetAddress)],
+      });
 
-        // Wait for repay transaction to be mined
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      toast({
+        title: "Repayment in progress",
+        description: "Waiting for repayment transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
 
-        setValue("amount", "");
-        
-        toast({
-          title: "Repayment successful",
-          description: `You have successfully repaid ${data.amount} USDC.`,
-        });
-      }
+      await publicClient.waitForTransactionReceipt({ hash: repayHash });
+
+      setValue("amount", "");
+      
+      toast({
+        title: "Repayment successful",
+        description: `You have successfully repaid ${data.amount} KES.`,
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
       
     } catch (error) {
       console.error("Repay error:", error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to initiate repayment. Please try again.",
-        variant: "destructive"
+        title: "Transaction failed",
+        description: error instanceof Error ? error.message : "Failed to complete the transaction.",
+        className: "bg-red-500 text-white border-none",
       });
     } finally {
       setIsLoading(false);
-      refetchUsdcBalance();
+      refetchKesBalance();
     }
   };
 
@@ -193,23 +212,28 @@ export default function RepayForm({
         <div className="mb-4">
           <div className="flex justify-between items-center">
             <label htmlFor="repay-amount" className="text-sm mb-1 block">
-              Amount (USDC)
+              Amount (KES)
             </label>
             <div className="flex items-end gap-4">
               <div>
                 <span className="text-[var(--secondary)] text-xs pr-1"> Debt: </span>
-                <span className="text-xs">${outstandingDebt.toLocaleString()}</span>
+                <span className="text-xs">{outstandingDebt.toLocaleString()}</span>
               </div>
               <div>
-                <span className="text-[var(--secondary)] text-xs pr-1">Balance: </span>
-                <span className="text-xs">${formattedUsdcBalance}</span>
+                <span className="text-[var(--secondary)] text-xs pr-1">Repayment Amount: </span>
+                <span 
+                  className="text-xs cursor-pointer hover:text-[var(--primary)]"
+                  onClick={() => setValue("amount", repaymentAmount.toString())}
+                >
+                  {repaymentAmount.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
           
           <div className="flex rounded-md overflow-hidden border border-[var(--border-color)]">
             <div className="bg-[var(--border-color)]/20 flex items-center px-2">
-              <span className="text-[var(--secondary)] text-sm">USDC</span>
+              <span className="text-[var(--secondary)] text-sm">KES</span>
             </div>
             <input
               id="repay-amount"
@@ -241,7 +265,7 @@ export default function RepayForm({
         <div className="mb-4 p-3 rounded-md bg-[var(--border-color)]/10">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--secondary)]">Total</span>
-            <span>USDC {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
+            <span>KES {watch("amount") ? parseFloat(watch("amount")).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0.00"}</span>
           </div>
         </div>
         
@@ -260,7 +284,7 @@ export default function RepayForm({
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">
-              <Wallet className="w-4 h-4" /> Repay USDC
+              <Wallet className="w-4 h-4" /> Repay KES
             </span>
           )}
         </button>

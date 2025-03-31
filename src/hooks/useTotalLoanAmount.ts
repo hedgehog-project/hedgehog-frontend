@@ -6,13 +6,15 @@ export function useTotalLoanAmount(account: string) {
         queryKey: ['totalLoanAmount', account],
         queryFn: () => getTotalLoanAmount(account),
         enabled: !!account,
+        refetchInterval: 2000,
     });
 } 
 
-export function useLoans(account: string) {
+export function useLoans(account?: string) {
     return useQuery({
         queryKey: ['loans', account],
         queryFn: () => getLoans(account),
         enabled: !!account,
+        refetchInterval: 2000,
     });
 }

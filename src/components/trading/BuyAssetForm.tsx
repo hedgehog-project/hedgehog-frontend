@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAccount, useWriteContract, useBalance, usePublicClient } from "wagmi";
 import { ArrowDown, Wallet, Loader2 } from "lucide-react";
-import { ISSUER_CONTRACT_ADDRESS, TUSDC_TOKEN_ADDRESS } from "@/config/contracts";
+import { ISSUER_CONTRACT_ADDRESS, KES_TOKEN_ADDRESS } from "@/config/contracts";
 import issuerABI from "@/abi/Issuer.json";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -50,7 +50,7 @@ export default function BuyAssetForm({
   // TUSDC balance
   const { data: kesBalance, refetch: refetchKesBalance } = useBalance({
     address,
-    token: TUSDC_TOKEN_ADDRESS as `0x${string}`,
+    token: KES_TOKEN_ADDRESS as `0x${string}`,
   });
 
   const formattedKesBalance = kesBalance
@@ -199,7 +199,7 @@ export default function BuyAssetForm({
         address: "0x0000000000000000000000000000000000000167" as `0x${string}`,
         abi: htsABI.abi as Abi,
         functionName: "approve",
-        args: [TUSDC_TOKEN_ADDRESS, formatAddress(ISSUER_CONTRACT_ADDRESS), approvalAmount],
+        args: [KES_TOKEN_ADDRESS, formatAddress(ISSUER_CONTRACT_ADDRESS), approvalAmount],
       });
 
       toast({
