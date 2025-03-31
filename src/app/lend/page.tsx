@@ -48,6 +48,7 @@ export default function LendPage() {
   const [activeTab, setActiveTab] = useState("supply");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const { address } = useAccount();
 
   // Filter assets based on search term
@@ -57,24 +58,8 @@ export default function LendPage() {
       asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort assets based on selected criteria
-  const sortedAssets = [...filteredAssets].sort((a, b) => {
-    switch (sortBy) {
-      case "apy":
-        return b.apy - a.apy;
-      case "liquidity":
-        return b.liquidity - a.liquidity;
-      case "price":
-        return b.price - a.price;
-      case "alphabetical":
-        return a.name.localeCompare(b.name);
-      default:
-        return 0;
-    }
-  });
-
   // Get all asset addresses
-  const assetAddresses = sortedAssets
+  const assetAddresses = filteredAssets
     .map((asset) => asset.contractAddress)
     .filter((address): address is string => !!address);
 
@@ -88,13 +73,6 @@ export default function LendPage() {
     data: assetsProvidedLiquidityByAccount,
   } = useAssetsProvidedLiquidityByAccount(address as `0x${string}`);
 
-  console.log(assetsProvidedLiquidityByAccount);
-
-  const handleAssetClick = (asset: Asset) => {
-    setSelectedAsset(asset);
-    setIsSheetOpen(true);
-  };
-
   // Helper function to get total provided liquidity
   const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
     if (!providedLiquidityData?.[assetTokenAddress]) return 0;
@@ -102,6 +80,23 @@ export default function LendPage() {
       (sum, item) => sum + item.amount,
       0
     );
+  };
+
+  // Sort assets based on selected criteria
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
+    switch (sortBy) {
+      case "apy":
+        return b.apy - a.apy;
+      case "liquidity":
+        return getTotalProvidedLiquidity(b.contractAddress || "") - getTotalProvidedLiquidity(a.contractAddress || "");
+      default:
+        return 0;
+    }
+  });
+
+  const handleAssetClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsSheetOpen(true);
   };
 
   return (
@@ -167,37 +162,34 @@ export default function LendPage() {
           </button>
 
           <div className="relative">
-            <button className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
+            <button 
+              className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10"
+              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+            >
               <span>
                 Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
               </span>
               <ArrowUpDown className="w-4 h-4" />
             </button>
-            <div className="absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 hidden">
+            <div className={`absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 ${isSortDropdownOpen ? 'block' : 'hidden'}`}>
               <div className="py-1">
                 <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("apy")}
+                  onClick={() => {
+                    setSortBy("apy");
+                    setIsSortDropdownOpen(false);
+                  }}
                 >
                   APY
                 </button>
                 <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("liquidity")}
+                  onClick={() => {
+                    setSortBy("liquidity");
+                    setIsSortDropdownOpen(false);
+                  }}
                 >
                   Liquidity
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("price")}
-                >
-                  Price
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("alphabetical")}
-                >
-                  Alphabetical
                 </button>
               </div>
             </div>
@@ -215,19 +207,19 @@ export default function LendPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--card-bg-secondary)]">
-                <th className="text-left text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                <th className="text-left text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Asset
                 </th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Liquidity
                 </th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Supply APY
                 </th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Collateral Factor
                 </th>
-                <th className="text-right text-xs font-medium text-[var(--secondary)] px-4 py-3">
+                <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Action
                 </th>
               </tr>

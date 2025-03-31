@@ -31,10 +31,11 @@ interface Asset {
 
 export default function BorrowPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("available");
+  const [sortBy, setSortBy] = useState("liquidity");
   const [activeTab, setActiveTab] = useState("borrow");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const { address } = useAccount();
   const router = useRouter();
   
@@ -67,32 +68,13 @@ export default function BorrowPage() {
       asset.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort assets based on selected criteria
-  const sortedAssets = [...filteredAssets].sort((a, b) => {
-    switch (sortBy) {
-      case "apy":
-        return b.apy - a.apy;
-      case "liquidity":
-        return b.liquidity - a.liquidity;
-      case "price":
-        return b.price - a.price;
-      case "alphabetical":
-        return a.name.localeCompare(b.name);
-      default:
-        return 0;
-    }
-  });
-
-    // Get all asset addresses
-    const assetAddresses = sortedAssets
+  // Get all asset addresses
+  const assetAddresses = filteredAssets
     .map((asset) => asset.contractAddress)
     .filter((address): address is string => !!address);
 
   // Fetch provided liquidity for all assets
   const { data: providedLiquidityData } = useProvidedLiquidity(assetAddresses);
-
-
-  const { data: totalPlatformBorrowedAmount } = useTotalPlatformBorrowedAmount();
 
   // Helper function to get total provided liquidity
   const getTotalProvidedLiquidity = (assetTokenAddress: string) => {
@@ -103,12 +85,28 @@ export default function BorrowPage() {
     );
   };
 
+  // Sort assets based on selected criteria
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
+    switch (sortBy) {
+      case "liquidity":
+        return getTotalProvidedLiquidity(b.contractAddress || "") - getTotalProvidedLiquidity(a.contractAddress || "");
+      case "borrowApy":
+        return (b.borrowApy || 0) - (a.borrowApy || 0);
+      case "borrowLimit":
+        const aLimit = Number(assetsProvidedLiquidityByAccount?.find(item => item.asset === a.contractAddress)?.amount || 0) / 1e6 * (a.collateralFactor || 0);
+        const bLimit = Number(assetsProvidedLiquidityByAccount?.find(item => item.asset === b.contractAddress)?.amount || 0) / 1e6 * (b.collateralFactor || 0);
+        return bLimit - aLimit;
+      default:
+        return 0;
+    }
+  });
+
+  const { data: totalPlatformBorrowedAmount } = useTotalPlatformBorrowedAmount();
+
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsSheetOpen(true);
   };
-
-
 
   return (
     <div className="space-y-8">
@@ -161,29 +159,43 @@ export default function BorrowPage() {
           </button>
           
           <div className="relative">
-            <button className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10">
-              <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}</span>
+            <button 
+              className="flex items-center gap-1 p-2 rounded-md border border-[var(--border-color)] hover:bg-[var(--border-color)]/10"
+              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+            >
+              <span>
+                Sort: {sortBy === "liquidity" ? "Liquidity" : sortBy === "borrowApy" ? "Borrow APY" : "Borrow Limit"}
+              </span>
               <ArrowUpDown className="w-4 h-4" />
             </button>
-            <div className="absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 hidden">
+            <div className={`absolute right-0 mt-1 w-48 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 ${isSortDropdownOpen ? 'block' : 'hidden'}`}>
               <div className="py-1">
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("available")}
+                  onClick={() => {
+                    setSortBy("liquidity");
+                    setIsSortDropdownOpen(false);
+                  }}
                 >
-                  Available to Borrow
+                  Liquidity
                 </button>
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("apy")}
+                  onClick={() => {
+                    setSortBy("borrowApy");
+                    setIsSortDropdownOpen(false);
+                  }}
                 >
                   Borrow APY
                 </button>
-                <button 
+                <button
                   className="block w-full text-left px-4 py-2 hover:bg-[var(--border-color)]/10"
-                  onClick={() => setSortBy("alphabetical")}
+                  onClick={() => {
+                    setSortBy("borrowLimit");
+                    setIsSortDropdownOpen(false);
+                  }}
                 >
-                  Alphabetical
+                  Borrow Limit
                 </button>
               </div>
             </div>
