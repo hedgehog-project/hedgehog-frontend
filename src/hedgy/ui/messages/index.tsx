@@ -27,11 +27,11 @@ export default function Messages(){
                                     ? 'bg-[var(--primary)] text-[var(--primary-foreground)] rounded-br-none' 
                                     : 'bg-[var(--muted)] text-[var(--foreground)] rounded-bl-none'
                             }`}>
-                                {textBlocks.map((block, j) => (
+                                {isUser ? textBlocks.map((block, j) => (
                                     <div key={j} className="whitespace-pre-wrap">
                                         {block.props?.content}
                                     </div>
-                                ))}
+                                )) : null}
                                 {message.blocks.map((block, j) => {
                                     if (block.name === "DISPLAY") {
                                         return <Summary key={j} content={block.props?.content ?? ""} />;

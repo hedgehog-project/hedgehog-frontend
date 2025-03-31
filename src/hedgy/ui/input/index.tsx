@@ -3,7 +3,7 @@ import { Controller, useForm, FieldErrors } from "react-hook-form"
 import { useHedgyState } from "../context"
 import {z} from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { SendIcon } from "lucide-react"
+import { SendIcon, Loader2 } from "lucide-react"
 import { getCompletion } from "@/hedgy/agent/access-functions"
 
 const promptSchema = z.object({
@@ -13,7 +13,7 @@ const promptSchema = z.object({
 type PromptSchema = z.infer<typeof promptSchema>
 
 export default function MessageInput(){
-    const {addMessage, setLoading} = useHedgyState()
+    const {addMessage, setLoading, isLoading} = useHedgyState()
 
     const form = useForm<PromptSchema>({
         resolver: zodResolver(promptSchema),
@@ -24,7 +24,9 @@ export default function MessageInput(){
 
     const handleSubmit = async (values: PromptSchema )=> {
         if (!values.prompt.trim()) return;
-        
+    
+       
+    
         setLoading(true);
         
         // Add user message immediately
@@ -34,21 +36,19 @@ export default function MessageInput(){
                     name: "USER_MESSAGE",
                     description: "User's message",
                     props: { content: values.prompt }
-                },
-                {
-                    name: "TEXT",
-                    description: "Message content",
-                    props: { content: values.prompt }
                 }
             ],
             id: Date.now().toString()
         });
 
+         // Reset form immediately
+        form.reset({ prompt: "" });
+    
         try {
             const results = await getCompletion({
                 prompt: values.prompt
             });
-
+    
             addMessage({
                 blocks: results,
                 id: Date.now().toString()
@@ -56,7 +56,6 @@ export default function MessageInput(){
         }
         catch (e) {
             console.error("Something went wrong", e);
-            // Optionally add an error message to the chat
             addMessage({
                 blocks: [{
                     name: "TEXT",
@@ -68,9 +67,9 @@ export default function MessageInput(){
         }
         finally {
             setLoading(false);
-            form.reset({ prompt: "" });
         }
-    }
+    };
+    
 
     const handleError = (errors: FieldErrors<PromptSchema>) => {
         console.error("Form errors:", errors);
@@ -85,22 +84,35 @@ export default function MessageInput(){
                     return (            
                     <div className="w-full p-2 rounded-md flex flex-row items-center gap-x-2" >
                         <textarea 
-                            placeholder="Type a message..."
-                            className="flex flex-row w-full bg-transparent placeholder:text-[var(--muted-foreground)] text-[var(--foreground)] border-none min-h-10 max-h-20 resize-none focus:outline-none" 
+                            placeholder="Ask Hedgy about NSE..."
+                            className="flex flex-row w-full bg-transparent placeholder:text-gray-300 text-[var(--foreground)] border-none min-h-10 max-h-20 resize-none focus:outline-none" 
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                     e.preventDefault();
                                     form.handleSubmit(handleSubmit, handleError)();
                                 }
                             }}
+                            disabled={isLoading}
                             {...field} 
                         />
-                        <div 
+                        <button
                             onClick={form.handleSubmit(handleSubmit, handleError)}  
-                            className="p-2 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] cursor-pointer transition-colors duration-200 border border-[var(--border-color)]" 
+                            disabled={isLoading}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 border border-[var(--border-color)] ${
+                                isLoading 
+                                    ? 'bg-[var(--muted)] cursor-not-allowed' 
+                                    : 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] cursor-pointer'
+                            }`}
                         >
-                            <SendIcon className="text-[var(--primary-foreground)] h-5 w-5" />
-                        </div>
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin text-[var(--muted-foreground)]" />
+                                    <span className="text-sm text-[var(--muted-foreground)]">Asking...</span>
+                                </>
+                            ) : (
+                                <SendIcon className="text-[var(--primary-foreground)] h-5 w-5" />
+                            )}
+                        </button>
                     </div>
                     )
                 }}
