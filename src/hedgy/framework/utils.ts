@@ -14,9 +14,15 @@ export async function sendToLLM(prompt: {
     functionName: string
 }) {
     const { messages, functionName, _function: fun } = prompt
+
+    console.log(`
+    <request>
+    ${JSON.stringify(messages)}
+    </request>
+    `)
     const response = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: messages,
+        messages: messages, 
         tools: [
             {
                 function: {

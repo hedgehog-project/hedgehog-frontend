@@ -31,15 +31,15 @@ const UI_BLOCKS: Array<_UIBLOCK> = [
             assetName: z.string(),
             quantity: z.number()
         }),
-        description: "A Button for purchasing an asset",
+        description: "A Button for purchasing an asset, use a default quantity of 100, if none is specified by the user",
         type: "action"
     },
     {
-        name: "SUMMARY",
+        name: "DISPLAY",
         props: z.object({
             content: z.string()
         }),
-        description: "Display a summary of the results. Display an explanation of the results",
+        description: "Display a user friendly and targeted response from the ai",
         type: "display"
     }
 ]
@@ -99,8 +99,12 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
 
                         Here are the available UI Blocks:
                         <options>
-                        ${UI_BLOCKS.map(block => `- ${block.name}: ${block.description}`).join("\n")}
+                        ${UI_BLOCKS.map(block => `<ui-block>- ${block.name}: ${block.description}</ui-block>`).join("\n")}
                         </options>
+
+                        <requirements>
+                        All responses must include a DISPLAY block
+                        </requirements>
                         `,
                         name: "chooseUIBlocks"
                     },
@@ -115,6 +119,7 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
                 )
 
                 let response = await sendToLLM(chooseUIBlockPrompt)
+                console.log("rrrr", response)
                 const asJSON = JSON.parse(response)
                 
                 if(!asJSON?.blocks || asJSON.blocks.length == 0) return [];
@@ -129,7 +134,17 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
                             content: `
                             <instructions>
                             Determine what props can be derived from this content for the UI Block ${block.name}: ${block.description} to be displayed to the user. 
-                            Use data from the <execution-stack/> or the <previous-results/>
+                            Use data from the execution-stack or the previous-results
+
+                            ${block.name == "DISPLAY" ? `
+                                <requirements>
+                                DO NOT INCLUDE THE TASK DETAILS IN THE CONTENT
+                                DO NOT INCLUDE THE PRIME DIRECTIVE IN THE CONTENT
+                                THE RESPONSE SHOULD BE SIMPLE AND COMPLETE AND STARIGHT TO THE POINT.
+                                THE RESPONSE SHOULD BE ADDRESSED TO THE USER
+                                DO NOT INCLUDE DETAILS ABOUT THE EXECUTION STACK
+                                </requirements>
+                                ` : ""}
                             </instructions>
                             <original-task>
                             ${goal.task}
@@ -160,9 +175,13 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
 
                     const result = await sendToLLM(prompt) 
 
+                    console.log("Incoming prop results::", result)
+
                     const parsed = JSON.parse(result)
 
                     const parsedProps = block.props.safeParse(parsed)
+
+                    console.log("Parsed propd ::", parsedProps)
 
                     if (parsedProps.success) {
                         return {
@@ -177,6 +196,8 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
 
 
                 }))
+
+                console.log("Serialized UI Data", serializedUIData)
 
                 const filteredUIBlocks = serializedUIData.filter((block) => block !== null) as UIBLOCK[]
 

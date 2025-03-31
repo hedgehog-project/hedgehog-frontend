@@ -4,11 +4,12 @@
 // GET ASSET PRICES
 // GET DOCS AND EXPLANATIONS ON THE PLATFORM
 
-import { z } from "zod";
+import { symbol, z } from "zod";
 import { Oracle } from "../framework/oracle";
 import { Effect } from "effect";
 import { createPrompt, sendToLLM } from "../framework/utils";
 import zodToJsonSchema from "zod-to-json-schema";
+import { assets } from "@/data/marketData";
 
 const assetNameSchema =  z.enum(["ABSA", "EQTY", "BAMB", "CO-OP", "EABL", "EQUITY", "KCB", "KQ", "SAFARICOM", "KENYA AIRWAYS"])
 type ASSET_NAME_SCHEMA = z.infer<typeof assetNameSchema>
@@ -357,5 +358,48 @@ export const GET_ASSET_PRICES = Oracle.define<GET_ASSETS_PRICE_QUERY_SCHEMA, GET
             },
          })
     }, 
+})
+
+const getListedAssetsSchema = z.object({
+    empty_input: z.string()
+})
+
+type getListedAssetsSchemaInput = z.infer<typeof getListedAssetsSchema>
+
+const getListedAssetsResponse = z.object({
+    listedAssets: z.array(z.object({
+        name: z.string(),
+        description: z.string(),
+        token_symbol: z.string()
+    }))
+})
+
+type getListedAssetsSchemaOutput = z.infer<typeof getListedAssetsResponse>
+
+export const LISTED_ASSETS_ORACLE = Oracle.define<getListedAssetsSchemaInput, getListedAssetsSchemaOutput>({
+    name: "getListedAssets",
+    description: "Get all the tokens currently listed and being actively traded on hedgehog",
+    querySchema: getListedAssetsSchema,
+    responseSchema: getListedAssetsResponse,
+    reader(args) {
+        return Effect.tryPromise({
+            try: async () => {
+                const listedAssets = assets.map((asset) => {
+                    return {
+                        name: asset.name,
+                        description: asset.description,
+                        token_symbol: asset.tokenizedSymbol
+                    }
+                })
+
+                return {
+                    listedAssets
+                }
+            },
+            catch(error) {
+                console.log("Something went wrong ::", error)
+            },
+        })
+    },
 })
 

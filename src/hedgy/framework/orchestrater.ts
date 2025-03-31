@@ -90,6 +90,7 @@ export class Task {
                 onCompletion?.(null, left)
             },
             async onRight(right) {
+                console.log("Data to right ::", right)
                 reporter("completed", executor, null)
                 setOutput(right)
                 context?.push({
@@ -158,7 +159,7 @@ export class Task {
             <how-i-work>
             ALL USER REQUESTS ARE IN THE CONTEXT OF THE HEDGEHOG PROTOCOL, AND SHOULD ONLY BE ANSWERED IN THE CONTECT OF THE HEDGEHOG PROTOCOL.
             IF THE USER INCLUDES A VERB LIKE BUY I NEED TO PROVIDE A UI BLOCK FOR THE USER TO CONFIRM THE ACTION
-            MY USER TOLD ME THIS: 
+            Current task: 
             ${goal.task}
             I WANT TO COMPLETE THIS AS LONG AS IT'S ACHIEVABLE BY MY PRIME DIRECTIVE.
             I ALSO HAVE A NUMBER OF DATA SOURCES YOU CAN REFERENCE

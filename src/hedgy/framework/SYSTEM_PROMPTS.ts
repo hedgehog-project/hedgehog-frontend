@@ -100,14 +100,16 @@ export const TASK_RESPONSE_FORMATTER_SYSTEM_PROMPT = (
     const FUNCTION_DESCRIPTION = executor.Description;
 
     const MESSAGE = `
-        
+        <instruction>
+        STRUCTURE THE RESULT INTO THE CORRECT FORMAT FOR THE NEXT ACTION, YOU CAN DRAW ON THE EXECUTION STACK FOR MORE CONTEXT.
+        </instruction>
 
-        Here is the execution stack: \n
+        <execution-stack>
         ${EXECUTION_STACK_SUMMARY.join("\n")}.
-        Here is the previous result:
+        </execution-stack> \n
+        <previous-result>
         ${previousResult}.
-
-        generate input for ${FUNCTION_NAME}
+        </previous-result>
     `
 
     const prompt = createPrompt(

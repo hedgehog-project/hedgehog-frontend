@@ -15,6 +15,7 @@ export async function getCompletion(args: getCompletionArgs) {
     const orchestrationPromise = new Promise<Array<UIBLOCK>>(async (res, rej)=> {
         try {
             await orchestrator.run(goal, (result, error)=> {
+
                 if (error) {
                     rej(error)
                 } else {
@@ -29,7 +30,7 @@ export async function getCompletion(args: getCompletionArgs) {
     })
     const result = await orchestrationPromise
 
-    console.log("RESULT", result)
+    console.log("FINAL RESULTS FROM LLM", result)
 
     return result
     
