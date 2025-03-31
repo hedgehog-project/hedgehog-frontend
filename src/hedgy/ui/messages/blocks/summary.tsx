@@ -6,7 +6,7 @@ export default function Summary(props: {
 }){
     const { content } = props
     return  (
-        <div className="w-full p-2 rounded-md"  >
+        <div className="w-full p-2 rounded-md bg-[var(--card-background)] border border-[var(--border-color)] text-sm"  >
             {content}
         </div>
     )

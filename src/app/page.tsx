@@ -5,8 +5,14 @@ import AssetCard from "@/components/ui/AssetCard";
 import { assets } from "@/data/marketData";
 import Link from "next/link";
 import WorksCarousel from "@/components/ui/WorksCarousel";
+import { useAllAssetPrices } from "@/hooks/usePrices";
 
 export default function Home() {
+ 
+  const { data: allAssetPrices } = useAllAssetPrices();
+
+  console.log('All asset prices:', allAssetPrices);
+  
   return (
     <div className="space-y-8">
       {/* Hero section */}

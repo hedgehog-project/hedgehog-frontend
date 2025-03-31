@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAssetsProvidedLiquidityByAccount, getMarketsProvidedLiquidityByAccount, getProvidedLiquidity, getTotalProvidedLiquidity, getTotalProvidedLiquidityByAccount } from "@/app/actions/providedLiquidity";
+import { getAssetsProvidedLiquidityByAccount, getMarketsProvidedLiquidityByAccount, getProvidedLiquidity, getTotalProvidedLiquidity, getTotalProvidedLiquidityByAccount } from "@/actions/providedLiquidity";
 
 export function useProvidedLiquidity(assetTokenAddresses: string[]) {
   return useQuery({

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getTransactions, type Transaction } from '@/app/actions/transactions';
+import { getTransactions, type Transaction } from '@/actions/transactions';
 
 export function useTransactions(token?: string) {
     return useQuery<Transaction[]>({

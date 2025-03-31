@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getLoanRepayments, getLoanRepaymentsByAccount, type LoanRepayment } from "@/app/actions/loans";
+import { getLoanRepayments, getLoanRepaymentsByAccount, type LoanRepayment } from "@/actions/loans";
 
 export function useLoanRepaymentsByAccount(account: string) {
   return useQuery<LoanRepayment[]>({

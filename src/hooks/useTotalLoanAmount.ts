@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLoans, getTotalLoanAmount } from '@/app/actions/loans';
+import { getLoans, getTotalLoanAmount } from '@/actions/loans';
 
 export function useTotalLoanAmount(account: string) {
     return useQuery({

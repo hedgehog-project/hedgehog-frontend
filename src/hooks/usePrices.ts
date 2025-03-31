@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getAssetPrice, getAllAssetPrices } from '@/app/actions/prices';
+import { getAssetPrice, getAllAssetPrices } from '@/actions/prices';
 
 export function useAssetPrice(token: string) {
 //   console.log('useAssetPrice hook called with token:', token);

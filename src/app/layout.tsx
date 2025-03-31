@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import { Providers } from "./provider";
 import '@rainbow-me/rainbowkit/styles.css';
 import { Toaster } from "@/components/ui/toaster";
+import FloatingChat from "@/components/hedgy/FloatingChat";
 
 
 
@@ -42,6 +43,7 @@ export default function RootLayout({
             </footer>
           </div>
           <Toaster />
+          <FloatingChat />
         </ThemeProvider>
         </Providers>
       </body>

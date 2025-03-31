@@ -1,8 +1,8 @@
 "use client";
-import { createContext, ReactNode, useContext, useState } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import { UIBLOCK } from "../agent/actions";
 
- 
+const STORAGE_KEY = 'hedgy_messages';
 
 interface Message {
     blocks: Array<UIBLOCK>,
@@ -15,9 +15,9 @@ interface HedgyContext {
     isLoading: boolean,
     setCurrentPrompt: (prompt: string | null) => void,
     addMessage: (message: Message) => void,
-    setLoading: (loading: boolean) => void 
+    setLoading: (loading: boolean) => void,
+    clearMessages: () => void
 }
-
 
 const hedgyContext = createContext<HedgyContext>({
     addMessage(){},
@@ -25,19 +25,41 @@ const hedgyContext = createContext<HedgyContext>({
     messages: [], 
     isLoading: false,
     setLoading(){},
-    currentPrompt: null
+    currentPrompt: null,
+    clearMessages(){}
 })
 
 export function HedgyContextWrapper(props: {children: ReactNode}) {
-    const [messages, setMessages] = useState<Array<Message>>([])
-    const [currentPrompt, setCurrentPrompt] = useState<string | null>(null)
-    const [isLoading, setLoading] = useState(false) 
+    const [messages, setMessages] = useState<Array<Message>>([]);
+    const [currentPrompt, setCurrentPrompt] = useState<string | null>(null);
+    const [isLoading, setLoading] = useState(false);
+
+    // Load messages from localStorage on mount
+    useEffect(() => {
+        const savedMessages = localStorage.getItem(STORAGE_KEY);
+        if (savedMessages) {
+            try {
+                const parsedMessages = JSON.parse(savedMessages);
+                setMessages(parsedMessages);
+            } catch (error) {
+                console.error('Error loading messages from localStorage:', error);
+            }
+        }
+    }, []);
+
+    // Save messages to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }, [messages]);
 
     const addMessage = (message: Message) => {
-        setMessages((messages)=> {
-            return messages.concat([message])
-        })
-    }
+        setMessages((prevMessages) => [...prevMessages, message]);
+    };
+
+    const clearMessages = () => {
+        setMessages([]);
+        localStorage.removeItem(STORAGE_KEY);
+    };
 
     return (
         <hedgyContext.Provider
@@ -47,7 +69,8 @@ export function HedgyContextWrapper(props: {children: ReactNode}) {
                 isLoading,
                 messages,
                 setCurrentPrompt,
-                setLoading
+                setLoading,
+                clearMessages
             }}
         >
             {props.children}
@@ -55,8 +78,7 @@ export function HedgyContextWrapper(props: {children: ReactNode}) {
     )
 } 
 
-export function useHedgyState ( ) { 
-    const context = useContext(hedgyContext)
-
-    return context
+export function useHedgyState() { 
+    const context = useContext(hedgyContext);
+    return context;
 }
