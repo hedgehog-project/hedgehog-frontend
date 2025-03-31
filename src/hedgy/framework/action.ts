@@ -5,6 +5,7 @@
 // May act on its own with no side effects to the ozone
 
 import { Effect } from "effect/Effect"
+import { ContextItem, Goal } from "./orchestrater"
 
 
 
@@ -14,9 +15,9 @@ export class Action<Input = any, Output = any> {
     Description: string
     OutputSchema: Zod.ZodTypeAny
     InputSchema: Zod.ZodTypeAny
-    private Action: (args: Input) => Effect<Output, unknown, never>
+    private Action: (args: Input, goal: Goal, context: Array<ContextItem>) => Effect<Output, unknown, never>
 
-    constructor(name: string, description: string, outputSchema: Zod.ZodTypeAny, inputSchema: Zod.ZodTypeAny, action: (args: Input) => Effect<Output, unknown, never>){
+    constructor(name: string, description: string, outputSchema: Zod.ZodTypeAny, inputSchema: Zod.ZodTypeAny, action: (args: Input, goal: Goal, context: Array<ContextItem>) => Effect<Output, unknown, never>) {
         this.Name = name
         this.Description = description
         this.OutputSchema = outputSchema
@@ -24,8 +25,8 @@ export class Action<Input = any, Output = any> {
         this.Action = action
     }
 
-    Do(args: Input){
-        return this.Action(args)
+    Do(args: Input, goal: Goal, context: Array<ContextItem>) {
+        return this.Action(args, goal, context)
     }
 
     static define<I = any, O = any>(args: {
@@ -33,7 +34,7 @@ export class Action<Input = any, Output = any> {
         description: string,
         outputSchema: Zod.ZodTypeAny,
         inputSchema: Zod.ZodTypeAny,
-        action: (args: I) => Effect<O, unknown, never>
+        action: (args: I, goal: Goal, context: Array<ContextItem>) => Effect<O, unknown, never>
     }){
         return new Action<I, O>(args.name, args.description, args.outputSchema, args.inputSchema, args.action)
     }

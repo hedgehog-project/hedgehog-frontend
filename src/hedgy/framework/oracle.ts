@@ -42,12 +42,17 @@ export class Oracle<QuerySchema = any, ResultData = any> {
                         name: "createQueryParams",
                         content: `
                         I AM A HUMAN ASSISTANT, MY PRIME DIRECTIVE IS TO: ${directive}
+                        <task>
                         MY CURRENT TASK IS:
                         ${task}
+                        
                         IN ORDER TO COMPLETE THIS TASK I NEED TO QUERY THIS DATA SOURCE:
                         DATA SOURCE NAME ${this.Name}
                         DATA SOURCE DESCRIPTION ${this.Description}
+                        </task>
+                        <main-instruction>
                         Construct a query for this data source
+                        </main-instruction>
                         `
                     },
                     {

@@ -12,11 +12,17 @@ export const ENCODE_SYSTEM_PROMPT = (input: string, orchestratorDirective: strin
     const FUNCTION_DESCRIPTION = "Convert the human request into an execution task."
 
     const MESSAGE = `
+    <system-information>
     I am a assistant whose prime directive is: ${orchestratorDirective}. \n
+    </system-information>
+    <instructions>
     Based on the human request, determine a goal I can achieved that is alligned with my prime directive. \n 
     Also Determine a simple and straightfoward completion criteria which is not more than 5 words that I can evaluate my progress against and know when to stop executing. \n
+    </instructions>
+    <input>
     Here is what the human says:
     ${input}
+    </input>
     `
 
     const prompt = createPrompt(

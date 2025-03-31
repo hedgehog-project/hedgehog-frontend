@@ -21,6 +21,7 @@ interface _UIBLOCK {
     name: string,
     props: Zod.ZodTypeAny,
     description: string
+    type: "display" | "action"
 }
 
 const UI_BLOCKS: Array<_UIBLOCK> = [
@@ -30,21 +31,24 @@ const UI_BLOCKS: Array<_UIBLOCK> = [
             assetName: z.string(),
             quantity: z.number()
         }),
-        description: "A Button for purchasing an asset"
+        description: "A Button for purchasing an asset",
+        type: "action"
     },
     {
         name: "SUMMARY",
         props: z.object({
             content: z.string()
         }),
-        description: "Summarise the execution to the user"
+        description: "Display a summary of the results. Display an explanation of the results",
+        type: "display"
     }
 ]
 
 const parseInputSchema = z.object({
-    // results: z.string(),
+    response: z.string(),
     originalTask: z.string(),
     primeDirective: z.string(),
+    context: z.string()
 })
 
 type ParseInputSchema = z.infer<typeof parseInputSchema>
@@ -58,20 +62,45 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
         uiBlocks: z.array(uiBlockSchema)
     }),
     inputSchema: parseInputSchema,
-    action(args) {
-        const { originalTask, primeDirective } = args
+    action(args, goal, context) {
+        console.log("Incoming UI Block Args::", args)
+        const { originalTask, primeDirective, response: results } = args
+        console.log("Results:: ", results)
+
+        const COMPLETED_STEPS = context.map((step, i) => {
+            return `
+                BEGIN STEP ${i + 1}.
+                ${step.task}.
+                ${step.taskDescription}.
+                ${typeof step.taskResult === "object" ? JSON.stringify(step.taskResult) : {}}.
+                END STEP ${i + 1}.
+            `
+        }).join("\n")
+
         return Effect.tryPromise({
             try: async () => {
                 const chooseUIBlockPrompt = createPrompt(
                     {
                         role: "system",
                         content: `
-                            choose a single or multiple UI Blocks to correctly display, and provide interactions for the following content:
-                            original task: ${args.originalTask}
-                            prime directive: ${primeDirective}
+                        <instructions>
+                        choose a single or multiple UI Blocks to correctly display, and provide interactions for the following content:
+                        original task: ${goal.task}
+                        prime directive: ${goal.directive}
+                        </instructions>
 
-                            Here are the available UI Blocks:
-                            ${UI_BLOCKS.map(block => `- ${block.name}: ${block.description}`).join("\n")}
+                        <execution-stack>
+                        ${COMPLETED_STEPS}
+                        </execution-stack>
+
+                        <previous-response>
+                        ${results}
+                        </previous-response>
+
+                        Here are the available UI Blocks:
+                        <options>
+                        ${UI_BLOCKS.map(block => `- ${block.name}: ${block.description}`).join("\n")}
+                        </options>
                         `,
                         name: "chooseUIBlocks"
                     },
@@ -98,10 +127,26 @@ export const CHOOSE_UI_BLOCK_ACTION = Action.define<ParseInputSchema, UIBLOCK[]>
                         {
                             role: "system",
                             content: `
-                            Determine what props can be derived from this content for the UI Block ${block.name}: ${block.description}
-                      
-                            original task: ${args.originalTask}
-                            prime directive: ${primeDirective}
+                            <instructions>
+                            Determine what props can be derived from this content for the UI Block ${block.name}: ${block.description} to be displayed to the user. 
+                            Use data from the <execution-stack/> or the <previous-results/>
+                            </instructions>
+                            <original-task>
+                            ${goal.task}
+                            </original-task>
+                            <prime-directive>
+                            prime directive: ${goal.directive}
+                            </prime-directive>
+
+                            <execution-stack>
+                            ${COMPLETED_STEPS}
+                            </execution-stack>
+
+                            <previous-results>
+                            ${results}
+                            </previous-results>
+
+                            
                             `,
                             name: "getUIBlockProps"
                         },

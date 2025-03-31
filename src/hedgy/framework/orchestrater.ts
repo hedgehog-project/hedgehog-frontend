@@ -62,6 +62,7 @@ export class Task {
     async execute(args: { _prevResult: any | undefined, context: Array<ContextItem>, library: Library, goal: Goal }, onCompletion: onCompletionFn): Promise<any> {
         const { _prevResult, context = [], library, goal } = args 
         let prevResult = _prevResult
+        console.log("Prev Result ::", prevResult)
         try {
             if(prevResult){
                 prevResult = await Task.reformat(this.executor,prevResult, context)
@@ -81,7 +82,7 @@ export class Task {
         }
 
 
-        const either = Effect.either(this.executor.Do(prevResult))
+        const either = Effect.either(this.executor.Do(prevResult, goal, context))
         const eitherResult = await Effect.runPromise(either)
         return await Either.match(eitherResult, {
             onLeft(left) {
@@ -145,25 +146,40 @@ export class Task {
                 role: "system",
                 name: "getNext",
                 content: `
+            <system information>
+            <directive>
             I AM A HUMAN ASSISTANT, MY PRIME DIRECTIVE IS TO: ${goal.directive}
+            </directive>
+            <completion-criteria>
             I'LL END EXECUTION ONCE MY COMPLETION CRITERIA OF ${goal.completionCriteria}
+            </completion-criteria>
+            </system information>
+
+            <how-i-work>
+            ALL USER REQUESTS ARE IN THE CONTEXT OF THE HEDGEHOG PROTOCOL, AND SHOULD ONLY BE ANSWERED IN THE CONTECT OF THE HEDGEHOG PROTOCOL.
             IF THE USER INCLUDES A VERB LIKE BUY I NEED TO PROVIDE A UI BLOCK FOR THE USER TO CONFIRM THE ACTION
             MY USER TOLD ME THIS: 
             ${goal.task}
             I WANT TO COMPLETE THIS AS LONG AS IT'S ACHIEVABLE BY MY PRIME DIRECTIVE.
             I ALSO HAVE A NUMBER OF DATA SOURCES YOU CAN REFERENCE
             ${goal.data_sources ?? "NO DATA SOURCES REQUIRED FOR THIS TASK"}
-
+            </how-i-work>
+            
+            <execution-stack>
             EXECUTED_STEPS ${context.length}
             ${context.length == 0 ? "no steps have been completed yet" : "COMPLETED STEPS"}
             ${COMPLETED_STEPS}
-            ---------------------------------
-
+            </execution-stack>
+            
+            <library>
             AVAILABLE ACTIONS TO DO NEXT:
             ${LIBRARY_SUMMARY}
+            </library>
             
+            <what-to-do>
             Choose one of the above actions for the next step, or if there's no more steps forward choose CHOOSE_UI_BLOCK
             If the task can be completed by the data from the data sources, choose CHOOSE_UI_BLOCK and parse in the relevant result data
+            </what-to-do>
             `
             },
             {
@@ -291,17 +307,19 @@ export class  Orchestrater {
             if (!context) return "";
 
             return `
+            <source>
             SOURCE ${context.name} 
             SOURCE DESCRIPTION ${context.description}
             RESULTS:
             ${JSON.stringify(context.result)}
+            </source>
             `
         })?.join("\n")
 
         const data_sources = `
-        BEGIN DATA SOURCES
+        <sources>
         ${CONTEXT_SUMMARY}
-        END   DATA SOURCES
+        </sources>
         `;
 
         this.data_sources = data_sources

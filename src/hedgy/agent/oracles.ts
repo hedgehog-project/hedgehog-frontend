@@ -7,9 +7,93 @@
 import { z } from "zod";
 import { Oracle } from "../framework/oracle";
 import { Effect } from "effect";
+import { createPrompt, sendToLLM } from "../framework/utils";
+import zodToJsonSchema from "zod-to-json-schema";
 
 const assetNameSchema =  z.enum(["ABSA", "EQTY", "BAMB", "CO-OP", "EABL", "EQUITY", "KCB", "KQ", "SAFARICOM", "KENYA AIRWAYS"])
 type ASSET_NAME_SCHEMA = z.infer<typeof assetNameSchema>
+
+const BASE_DOCS_SITE = "https://raw.githubusercontent.com/hedgehog-project/hedge-hog-docs/refs/heads/main/"
+
+const MAIN_DOCS_DATA_SOURCES = [
+    "frequently-asked-questions.md",
+    "README.md",
+    "architecture/overview.md",
+    "architecture/price-oracle.md",
+    "architecture/issuer.md",
+    "architecture/lender.md"
+]
+
+async function constructCompleteDocs() {
+    let DOCS_COMPILATION = "";
+
+    for (const doc_source of MAIN_DOCS_DATA_SOURCES) {
+        const source_url = `${BASE_DOCS_SITE}${doc_source}`
+
+        const response = await fetch(source_url)
+
+        if (!response.ok) continue;
+
+        const text = await response.text();
+
+        DOCS_COMPILATION = DOCS_COMPILATION + "\n\n" + (text ?? "")
+    }
+
+    return DOCS_COMPILATION
+}
+
+
+async function getAnswerFromDocs(question: string) {
+    const docs_data = await constructCompleteDocs()
+
+    const prompt = createPrompt(
+        {
+            role: "system",
+            content: `
+            <instructions>
+            BASED ON THIS DOCUMENTATION ABOUT THE HEDGEHOG LENDING PROTOCOL.
+            GENERATE A RESPONSE FOR THE QUERY.
+            IF YOU ARE UNABLE TO FIND A REASONABLE ANSWER TO THE USER'S PROMPT REPLY WITH, 
+                <example>
+                    My sources aren't clear on that, perhaps rephrase the question.
+                </example>
+
+            You are alloed to summarise already documented sources, but not come up with answers on your own.
+            </instructions>
+
+            <documentation>
+            ${docs_data}
+            </documentation>
+
+            <question>
+            ${question}
+            </question>
+
+            <condition-for-answer-validity>
+            All answers should come directly from the documentation and no other sources.
+            </condition-for-answer-validity>
+            `
+        },
+        {
+            name: "queryDocs",
+            description: "Query the documentation to determine an answer to a user's question.",
+            parameters: zodToJsonSchema(z.object({
+                response: z.string()
+            }))
+        },
+        "queryDocs"
+    )
+
+    const response = await sendToLLM(prompt)
+
+    try {
+        const asJSON = JSON.parse(response)
+        return asJSON?.response ?? "Unable to reach documentation at this time, please try again in a few";
+    } catch (e) {
+        console.log("Something went wrong making the request ::", e)
+        return "Unable to reach documentation at this time, please try again in a few"
+    }
+}
 
 async function getPressRelease(assetName: PRESS_RELEASE_QUERY_SCHEMA["assetName"]){
     const BASE_PRESS_RELEASE_PATH = `https://raw.githubusercontent.com/hedgehog-project/dummy-press-releases/refs/heads/main/{{ASSET_NAME}}.md`
@@ -145,6 +229,41 @@ export const PRESS_RELEASE_ORACLE_GENERAL = Oracle.define<PRESS_RELEASE_QUERY_SC
             },
         })
      }
+})
+
+const docReadOracleInputSchema = z.object({
+    query: z.string()
+})
+
+type DOCS_READ_ORACLE_INPUT = z.infer<typeof docReadOracleInputSchema>
+
+const docsReadOracleOutputSchema = z.object({
+    response: z.string()
+})
+
+type DOCS_READ_ORACLE_OUTPUT = z.infer<typeof docsReadOracleOutputSchema>
+
+export const DOCS_READ_ORACLE = Oracle.define<DOCS_READ_ORACLE_INPUT, DOCS_READ_ORACLE_OUTPUT>({
+    name: "getAnswerFromDocs",
+    description: "Get an answer straight from the main documentation site, for anything regarding the protocol and how it's structured, or anything that needs an explanation.  Input should be structured like a question that needs an answer.",
+    querySchema: docReadOracleInputSchema,
+    responseSchema: docsReadOracleOutputSchema,
+    reader(args) {
+        const { query } = args
+        return Effect.tryPromise({
+            try: async () => {
+                const docsAnswer = await getAnswerFromDocs(query)
+
+                return {
+                    response: docsAnswer
+                }
+            },
+            catch(e) {
+                console.log("Something went wrong", e)
+                return e
+            }
+        })
+    },
 })
 
 const getAssetPriceQuerySchema = z.object({

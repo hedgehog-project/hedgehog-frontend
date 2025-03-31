@@ -57,18 +57,26 @@ export class Library {
                 role: "system",
                 name: "getOracles",
                 content: `
+                <foundational information>
                 I AM A HUMAN ASSISTANT, MY PRIME DIRECTIVE IS TO: ${directive}
                 I'll END EXECUTION ONCE MY COMPLETION CRITERIA OF ${goal.completionCriteria}
                 MY CURRENT TASK IS:
                 ${goal.task}
                 I WANT TO COMPLETE THIS AS LONG AS IT'S ACHIEVABLE BY MY PRIME DIRECTIVE.
+                </foundational information>
 
+                <instructions>
                 FIRST I WANT TO DETERMINE IF THE TASK NEEDS SOME CONTEXT DATA FROM MY ORACLES.
                 HERE ARE MY ORACLES: 
-                ${ORACLE_SUMMARY}
+
+                    <oracles>
+                    ${ORACLE_SUMMARY}
+                    </oracles>
 
                 If any of the listed oracles are helpful towards achieving my task add them to the args.
                 If none of the oracles are useful do not include them.
+                If my current task is a query that needs an explanation, I strongly suggest including the queryDocs oracle.
+                </instructions>
                 `
             },
             {
