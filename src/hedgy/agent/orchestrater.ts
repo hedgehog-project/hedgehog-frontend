@@ -1,7 +1,7 @@
 import { Library } from "../framework/library";
 import { Orchestrater } from "../framework/orchestrater";
 import { CHOOSE_UI_BLOCK_ACTION } from "./actions";
-import { DOCS_READ_ORACLE, GET_ASSET_PRICE_ORACLE, GET_ASSET_PRICES, PRESS_RELEASE_ORACLE_GENERAL, PRESS_RELEASE_ORACLE_SPECIFIC } from "./oracles";
+import { DOCS_READ_ORACLE, GET_ASSET_PRICE_ORACLE, GET_ASSET_PRICES, LISTED_ASSETS_ORACLE, PRESS_RELEASE_ORACLE_GENERAL, PRESS_RELEASE_ORACLE_SPECIFIC } from "./oracles";
 
 
 const library = Library.define()
@@ -13,6 +13,7 @@ library
 .AddOracle(GET_ASSET_PRICE_ORACLE)
 .AddOracle(GET_ASSET_PRICES)
     .AddOracle(DOCS_READ_ORACLE)
+    .AddOracle(LISTED_ASSETS_ORACLE)
 
 export const orchestrator = new Orchestrater(
     library,

@@ -8,12 +8,13 @@ import Summary from "./blocks/summary"
 export default function Messages(){
     const { messages } = useHedgyState()
 
+    console.log("Messages", messages)
 
     return (
         <div className="flex flex-col w-full p-2 gap-x-2" > 
             {
                 messages.map((message, i)=> {
-                    const summaries = message.blocks?.filter((b)=> b.name == "SUMMARY") ?? []
+                    const summaries = message.blocks?.filter((b) => b.name == "DISPLAY") ?? []
                     const SHOW_SUMMARIES = summaries?.length > 0
                     const actionButtons = message.blocks?.filter(b=>b.name == "PURCHASE_BUTTON") ?? []
                     const SHOW_ACTIONS = actionButtons?.length > 0
