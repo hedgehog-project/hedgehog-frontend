@@ -211,13 +211,13 @@ export default function LendPage() {
                   Asset
                 </th>
                 <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
-                  Liquidity
+                  Liquidity(KES)
                 </th>
                 <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
-                  Supply APY
+                  Supply APY(%)
                 </th>
                 <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
-                  Collateral Factor
+                  Collateral Factor(%)
                 </th>
                 <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Action
@@ -266,7 +266,7 @@ export default function LendPage() {
                     <td className="px-4 py-4 text-right">
                       {providedLiquidity > 0 ? (
                         <span className="ml-2">
-                         KES {formatUSDC(providedLiquidity)}
+                         {formatUSDC(providedLiquidity)}
                         </span>
                       ) : (
                         <span className="ml-2 text-[var(--secondary)]">

@@ -1,4 +1,4 @@
-import { AlertCircle, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Loan {
@@ -105,7 +105,7 @@ export default function ActiveLoans({ loans }: ActiveLoansProps) {
       {loans.length === 0 && (
         <div className="p-8 text-center">
           <ShieldCheck className="w-10 h-10 text-[var(--secondary)] mx-auto mb-2" />
-          <p className="text-[var(--secondary)]">You don't have any active loans.</p>
+          <p className="text-[var(--secondary)]">You dont have any active loans.</p>
           <button className="bracket-btn mt-4">
             Get a Loan
           </button>

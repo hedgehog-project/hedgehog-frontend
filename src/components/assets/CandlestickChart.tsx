@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarProps } from "recharts";
 
 interface CandlestickDataPoint {
   date: string;
@@ -13,9 +13,25 @@ interface CandlestickChartProps {
   data: CandlestickDataPoint[];
 }
 
+interface CandlestickProps extends BarProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  open: number;
+  close: number;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: CandlestickDataPoint;
+  }>;
+}
+
 // Custom renderer for candlestick elements
-const renderCandlestick = (props: any) => {
-  const { x, y, width, height, open, close } = props;
+const renderCandlestick = (props: unknown) => {
+  const { x, y, width, height, open, close } = props as CandlestickProps;
   
   const isPositive = close >= open;
   const color = isPositive ? "var(--success)" : "var(--danger)";
@@ -45,7 +61,7 @@ const renderCandlestick = (props: any) => {
 };
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (

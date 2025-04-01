@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AssetHolding {

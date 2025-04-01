@@ -104,7 +104,7 @@ export default function AssetDetailPage() {
           const amount = row.getValue("amount") as number;
           return (
             <>
-              {amount} <span className="text-xs text-[var(--secondary)]">{asset?.tokenizedSymbol}</span>
+              {amount}
             </>
           );
         },
@@ -121,7 +121,6 @@ export default function AssetDetailPage() {
               {value.toLocaleString("en-US", {
                 maximumFractionDigits: 0,
               })}
-              <span className="text-xs text-[var(--secondary)]">KES</span>
             </>
           );
         },
@@ -134,7 +133,7 @@ export default function AssetDetailPage() {
           const date = new Date(timestamp);
           return (
             <div className="text-center">
-              {format(date, 'MMM d, HH:mm:ss')} <span className="text-xs text-[var(--secondary)]">UTC</span>
+              {format(date, 'MMM d, HH:mm:ss')}
 
             </div>
           );

@@ -39,7 +39,7 @@ export const AssetBalance = ({ asset, address }: AssetBalanceProps) => {
           <AssetImage
             logoUrl={asset.logoUrl}
             symbol={asset.symbol}
-            size={8}
+            size={10}
           />
           <span className="font-normal">
             {asset.tokenizedSymbol}
@@ -49,15 +49,19 @@ export const AssetBalance = ({ asset, address }: AssetBalanceProps) => {
           <div className="text-xl font-semibold">
             {formatAssetBalance(balance.value)}
           </div>
-          <div className="text-xs text-[var(--success)]">
+         
+        </div>
+      </div>
+      <div className="flex justify-between items-center">
+      <p className="text-xs text-[var(--secondary)]">
+        {isPriceLoading ? "Loading..." : `Price: ${formatUSDC(Number(price))}`}
+      </p>
+      <div className="text-xs text-[var(--success)]">
             
             KES {formatUSDC(Number(balance.value) * (price ?? 0))}
           </div>
-        </div>
       </div>
-      <p className="text-sm text-[var(--secondary)]">
-        {isPriceLoading ? "Loading..." : `Price: ${formatUSDC(Number(price))}`}
-      </p>
+     
     </div>
   );
 }; 

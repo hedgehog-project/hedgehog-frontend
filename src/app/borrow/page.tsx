@@ -280,7 +280,7 @@ export default function BorrowPage() {
                     <td className="px-4 py-4 text-right">
                       {providedLiquidity > 0 ? (
                         <span className="ml-2">
-                          {formatUSDC(providedLiquidity)} <span className="text-xs text-[var(--secondary)]">KES</span>
+                          {formatUSDC(providedLiquidity)} 
                         </span>
                       ) : (
                         <span className="ml-2 text-[var(--secondary)]">

@@ -40,7 +40,7 @@ export default function AssetBorrowLimit({
 
   return (
     <span className="">
-      {formatUSDC(borrowLimit)} <span className="text-xs text-[var(--secondary)]">KES</span>
+      {formatUSDC(borrowLimit)}
     </span>
   );
 } 

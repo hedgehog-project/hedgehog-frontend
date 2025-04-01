@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Info, DollarSign, Wallet, ArrowRight } from "lucide-react";
+import { DollarSign, Wallet, ArrowRight } from "lucide-react";
 import AssetImage from "@/components/ui/AssetImage";
 import { cn } from "@/lib/utils";
 import { useAccount, useBalance } from "wagmi";
@@ -26,37 +26,13 @@ import Image from "next/image";
 import { useLoans, useTotalLoanAmount } from "@/hooks/useTotalLoanAmount";
 import { AssetBalance } from "@/components/portfolio/AssetBalance";
 import { useLoanRepaymentsByAccount } from "@/hooks/useLoanRepayments";
+import { useHealthFactor } from "@/hooks/useHealthFactor";
+import { HealthFactorProgress } from "@/components/portfolio/HealthFactorProgress";
 
 // Constants
 // const USD_TO_KES_RATE = 129;
 
-// Sample user data - in a real app this would come from an API
-const userPortfolio = {
-  totalValue: 48756, // in USDC
-  totalDebt: 20168.5, // in USDC
-  netWorth: 28587.5, // in USDC
-  healthFactor: 3.65,
-  supplyPositions: [
-    {
-      assetId: "scom",
-      contractAddress: "0x000000000000000000000000000000000058162d",
-      amount: 85000,
-      valueUSD: 14662.5,
-      apy: 4.2,
-    },
-    {
-      assetId: "eqty",
-      contractAddress: "0x0000000000000000000000000000000000582c35",
-      amount: 32500,
-      valueUSD: 14836.25,
-      apy: 5.1,
-    },
-  ],
-  borrowPositions: [
-    { assetId: "absa", amount: 120000, valueUSD: 14940.0, apy: 3.6 },
-    { assetId: "eabl", amount: 3425, valueUSD: 5229.68, apy: 4.1 },
-  ],
-};
+
 
 interface SupplyPosition {
   id: string;
@@ -259,6 +235,8 @@ export default function PortfolioPage() {
     return new Set(loans.map((loan) => loan.collateralAsset)).size;
   };
 
+  const { healthFactor } = useHealthFactor();
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Your Portfolio</h1>
@@ -281,7 +259,7 @@ export default function PortfolioPage() {
                       {isTotalProvidedLiquidityLoading ? (
                         <p>0.00</p>
                       ) : totalProvidedLiquidity ? (
-                        formatUSDC(totalProvidedLiquidity) + " KES"
+                        formatUSDC(totalProvidedLiquidity) 
                       ) : (
                         "0.00"
                       )}
@@ -330,27 +308,7 @@ export default function PortfolioPage() {
               </div>
 
               <div className="p-4 bg-[var(--border-color)]/10 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="font-medium">Health Factor</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold">
-                      {userPortfolio.healthFactor.toFixed(2)}
-                    </div>
-                    <div
-                      className={cn(
-                        "text-xs",
-                        userPortfolio.healthFactor >= 1.5
-                          ? "text-[var(--success)]"
-                          : "text-[var(--danger)]"
-                      )}
-                    >
-                      {userPortfolio.healthFactor >= 1.5 ? "Safe" : "Risky"}
-                    </div>
-                  </div>
-                </div>
+                <HealthFactorProgress healthFactor={healthFactor} />
               </div>
             </div>
           </div>
@@ -590,10 +548,10 @@ export default function PortfolioPage() {
                             </div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div> {position.valueUSD.toLocaleString()} <span className="text-[var(--secondary)] text-xs">KES</span></div>
+                            <div> {position.valueUSD.toLocaleString()}</div>
                           </td>
                           <td className="px-4 py-4 text-right">
-                            <div> {position.repaymentAmount.toLocaleString()} <span className="text-[var(--secondary)] text-xs">KES</span></div>
+                            <div> {position.repaymentAmount.toLocaleString()}</div>
                             {/* <div className="text-xs text-[var(--danger)]">
                               +{((position.repaymentAmount - position.valueUSD) / position.valueUSD * 100).toFixed(2)}%
                             </div> */}

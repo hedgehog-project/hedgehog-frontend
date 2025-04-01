@@ -22,6 +22,7 @@ export function useTotalProvidedLiquidity() {
     queryKey: ["totalProvidedLiquidity"],
     queryFn: getTotalProvidedLiquidity,
    refetchInterval: 2000, // Poll every 2 seconds
+   staleTime: 0, // 5 minutes
   });
 } 
 
@@ -30,6 +31,8 @@ export function useTotalProvidedLiquidityByAccount(account: `0x${string}`) {
     queryKey: ["totalProvidedLiquidityByAccount", account],
     queryFn: () => getTotalProvidedLiquidityByAccount(account),
     refetchInterval: 2000, // Poll every 2 seconds
+    enabled: !!account,
+    staleTime: 0, // 5 minutes
   });
 }
 
@@ -38,6 +41,8 @@ export function useAssetsProvidedLiquidityByAccount(account: `0x${string}`) {
     queryKey: ["assetsProvidedLiquidityByAccount", account],
     queryFn: () => getAssetsProvidedLiquidityByAccount(account),
     refetchInterval: 2000, // Poll every 2 seconds
+    enabled: !!account,
+    staleTime: 0, // 5 minutes
   });
 }
 
@@ -46,5 +51,7 @@ export function useMarketsProvidedLiquidityByAccount(account: `0x${string}`) {
         queryKey: ["marketsProvidedLiquidityByAccount", account],
         queryFn: () => getMarketsProvidedLiquidityByAccount(account),
         refetchInterval: 2000, // Poll every 2 seconds
+        enabled: !!account,
+        staleTime: 0, // 5 minutes
     });
 }
