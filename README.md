@@ -27,7 +27,7 @@ Hedgehog is a decentralized finance (DeFi) platform that enables users to collat
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/hedgehog.git
+git clone https://github.com/hedgehog-project/hedgehog-frontend.git
 cd hedgehog
 ```
 
