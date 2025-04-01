@@ -217,9 +217,6 @@ export default function LendPage() {
                   Supply APY(%)
                 </th>
                 <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
-                  Collateral Factor(%)
-                </th>
-                <th className="text-right text-sm font-medium text-[var(--secondary)] px-4 py-3">
                   Action
                 </th>
               </tr>
@@ -287,14 +284,7 @@ export default function LendPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <div>
-                        {asset.collateralFactor
-                          ? (asset.collateralFactor * 100).toFixed(0) + "%"
-                          : "0%"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark) text-white">
+                      <button className="cursor-pointer px-4 py-1 rounded-md bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white">
                         Supply
                       </button>
                     </td>
