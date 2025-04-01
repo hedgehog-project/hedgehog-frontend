@@ -5,10 +5,14 @@ import { useAccount, useWriteContract, useBalance, usePublicClient } from "wagmi
 import { Loader2 } from "lucide-react";
 import { ISSUER_CONTRACT_ADDRESS, KES_TOKEN_ADDRESS } from "@/config/contracts";
 import issuerABI from "@/abi/Issuer.json";
+import htsABI from "@/abi/HederaTokenService.json";
 import { useToast } from "@/components/ui/use-toast";
 import { formatAddress } from "@/lib/wagmi";
 import { Abi, encodeFunctionData } from "viem";
 import { adminClient } from "@/lib/admin";
+import { useAssetPrice } from "@/hooks/usePrices";
+import { assets } from "@/data/marketData";
+
 
 interface Props {
   assetName: string;
@@ -22,6 +26,15 @@ export function PurchaseButton(props: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+
+  const asset = assets.find((asset) => asset.name === assetName);
+
+  const { data: assetPriceData } = useAssetPrice(asset?.contractAddress || "");
+
+  
+
+  const assetPrice = (Number(assetPriceData))
+  console.log("assetPrice:", assetPrice);
 
   // Get KES balance for refetching after purchase
   const { refetch: refetchKesBalance } = useBalance({
@@ -48,6 +61,11 @@ export function PurchaseButton(props: Props) {
     setIsLoading(true);
 
     try {
+      if (!assetPriceData) return;
+
+      // Calculate the amount in KES (6 decimals)
+      const amountInKes = BigInt(Math.floor(quantity * assetPrice * 1e6));
+
       // Grant KYC to the user using admin client
       if (!publicClient) {
         toast({
@@ -94,6 +112,32 @@ export function PurchaseButton(props: Props) {
         });
         return;
       }
+
+      // First approve KES spending using HTS
+      const approvalHash = await writeContractAsync({
+        address: "0x0000000000000000000000000000000000000167" as `0x${string}`, // HTS Precompile address
+        abi: htsABI.abi as Abi,
+        functionName: "approve",
+        args: [
+          KES_TOKEN_ADDRESS, // Token address
+          formatAddress(ISSUER_CONTRACT_ADDRESS), // Spender address
+          amountInKes * BigInt(2) // Approve 2x amount for safety
+        ],
+      });
+
+      toast({
+        title: "Approval in progress",
+        description: "Waiting for approval transaction to be confirmed...",
+        className: "bg-yellow-500/50 border-yellow-500 text-white border-none",
+      });
+
+      await publicClient?.waitForTransactionReceipt({ hash: approvalHash });
+
+      toast({
+        title: "Approval successful",
+        description: "Approval transaction confirmed.",
+        className: "bg-green-500/50 border-green-500 text-white border-none",
+      });
 
       // Purchase transaction
       const purchaseHash = await writeContractAsync({

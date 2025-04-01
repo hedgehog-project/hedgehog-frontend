@@ -48,14 +48,16 @@ export default function BorrowPage() {
     const asset = assets.find(a => a.contractAddress === item.asset);
     if (!asset) return total;
     const userProvidedAmount = Number(item.amount) / 1e6;
-    return total + (userProvidedAmount * (asset.collateralFactor || 0));
+    const borrowedAmount = Number(item.borrowedAmount) / 1e6;
+    const availableBorrowLimit = (userProvidedAmount * (asset.collateralFactor || 0)) - borrowedAmount;
+    return total + Math.max(0, availableBorrowLimit);
   }, 0) || 0;
 
   // Sample user data - in a real app this would come from an API
   const userBorrowStats = {
     borrowLimit: totalBorrowLimit,
-    totalBorrowed: 3400.75,
-    borrowLimitUsed: totalBorrowLimit > 0 ? 3400.75 / totalBorrowLimit : 0,
+    totalBorrowed: assetsProvidedLiquidityByAccount?.reduce((total, item) => total + (Number(item.borrowedAmount) / 1e6), 0) || 0,
+    borrowLimitUsed: totalBorrowLimit > 0 ? (assetsProvidedLiquidityByAccount?.reduce((total, item) => total + (Number(item.borrowedAmount) / 1e6), 0) || 0) / totalBorrowLimit : 0,
     netAPY: 1.8
   };
 

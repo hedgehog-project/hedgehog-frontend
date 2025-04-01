@@ -3,6 +3,8 @@
 import { db } from "@/db";
 import { providedLiquidity } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { loans } from "@/db/schema";
+import { loanRepayment } from "@/db/schema";
 
 const USDC_DECIMALS = 6;
 
@@ -59,14 +61,43 @@ export async function getTotalProvidedLiquidityByAccount(account: string) {
 
 export async function getAssetsProvidedLiquidityByAccount(account: string) {
   try {
+    // Get all provided liquidity for the account
     const allLiquidity = await db
       .select()
       .from(providedLiquidity)
       .where(eq(providedLiquidity.account, account));
 
-    console.log(allLiquidity);
-    return allLiquidity;
+    // Get all active loans for the account
+    const activeLoans = await db
+      .select()
+      .from(loans)
+      .where(eq(loans.account, account));
 
+    // Get all repaid loan IDs
+    const repaidLoanIds = await db
+      .select({ loanId: loanRepayment.loanId })
+      .from(loanRepayment)
+      .where(eq(loanRepayment.account, account));
+
+    const repaidLoanIdSet = new Set(repaidLoanIds.map(r => r.loanId));
+
+    // Filter out repaid loans
+    const activeLoansWithoutRepaid = activeLoans.filter(loan => !repaidLoanIdSet.has(loan.id));
+
+    // Group loans by collateral asset
+    const loansByAsset = activeLoansWithoutRepaid.reduce((acc, loan) => {
+      if (!acc[loan.collateralAsset]) {
+        acc[loan.collateralAsset] = 0;
+      }
+      acc[loan.collateralAsset] += loan.loanAmountUSDC;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Add borrowed amount to each liquidity item
+    return allLiquidity.map(item => ({
+      ...item,
+      borrowedAmount: loansByAsset[item.asset] || 0
+    }));
 
   } catch (error) {
     console.error("Error fetching total provided liquidity by account:", error);

@@ -8,7 +8,7 @@ export default function FloatingChat() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="fixed bottom-24 right-10 z-50">
+        <div className="fixed bottom-12 right-10 z-50">
             {!isOpen ? (
                 <button
                     onClick={() => setIsOpen(true)}
