@@ -31,7 +31,11 @@ export default function Messages(){
                                     <div key={j} className="whitespace-pre-wrap">
                                         {block.props?.content}
                                     </div>
-                                )) : null}
+                                )) : textBlocks.map((block, i) => (
+                                    <div key={i} className="whitespace-pre-wrap" >
+                                        {block.props?.content}
+                                    </div>
+                                ))}
                                 {message.blocks.map((block, j) => {
                                     if (block.name === "DISPLAY") {
                                         return <Summary key={j} content={block.props?.content ?? ""} />;
