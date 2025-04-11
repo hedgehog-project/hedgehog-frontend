@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Hedgy from "@/hedgy/ui/entrypoint";
 import { ChatBubbleLeftIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { BotIcon } from "lucide-react";
 
 export default function FloatingChat() {
     const [isOpen, setIsOpen] = useState(false);
@@ -12,9 +13,12 @@ export default function FloatingChat() {
             {!isOpen ? (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-foreground)] rounded-full p-4 shadow-lg transition-all duration-200 hover:scale-110 animate-bounce-slow border border-[var(--border-color)]"
+                    className=" gap-x-2 bg-[var(--primary)] flex flex-row items-center justify-between cursor-pointer hover:bg-[var(--primary-hover)] text-[var(--primary-foreground)] rounded-lg p-4 shadow-lg transition-all duration-200 hover:scale-110 animate-bounce-slow border border-[var(--border-color)]"
                 >
-                    <ChatBubbleLeftIcon className="w-6 h-6" />
+                    <p>
+                        Ask Hedgy
+                    </p>
+                    <BotIcon className="w-6 h-6" />
                 </button>
             ) : (
                 <div className="bg-[var(--background)] rounded-lg shadow-xl w-[400px] h-[600px] flex flex-col overflow-hidden animate-slide-up border border-[var(--border-color)]">

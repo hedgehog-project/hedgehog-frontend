@@ -1,37 +1,49 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { encodeHumanRequestToExecutionTask } from "../framework/codec";
+import { hedgyAnswer } from "../v2/hedgy/prompts";
+import { ModelOutput } from "../v2/model";
 import { UIBLOCK } from "./actions";
 import { orchestrator } from "./orchestrater";
 
 interface getCompletionArgs {
     prompt: string 
 }
-export async function getCompletion(args: getCompletionArgs) {
+export async function getCompletion(args: getCompletionArgs, history: Array<ModelOutput>) {
     const { prompt } = args 
-    
-    const goal = await encodeHumanRequestToExecutionTask(prompt, orchestrator.directive)
 
-    const orchestrationPromise = new Promise<Array<UIBLOCK>>(async (res, rej)=> {
-        try {
-            await orchestrator.run(goal, (result, error)=> {
+    try {
 
-                if (error) {
-                    rej(error)
-                } else {
-                    res(result ?? [])
-                }
-            })
+    }
+    catch (e) {
+        console.log("Something went wrong::", e)
+
+        return {
+            name: "DISPLAY",
+            description: "something went wrong",
+            props: {
+                content: "Oops 😬! I'm unable to answer that at the moment, having an issue with my servers, try asking again in a minute."
+            }
         }
-        catch (e){
-            console.log("Something went wrong ::", e)
-            rej(e)
-        }
-    })
-    const result = await orchestrationPromise
+    }
+    const result = await hedgyAnswer(prompt, history)
 
-    console.log("FINAL RESULTS FROM LLM", result)
+    const ui_blocks = (() => {
+        if ((result as any).props) return [result];
+        const tool_response = (result as ModelOutput)?.toolResponses ?? []
 
-    return result
+        return tool_response.map((response) => {
+            return {
+                name: response.name == "displaySummary" ? "DISPLAY" : response.name == "displayButton" ? "PURCHASE_BUTTON" : "unknown",
+                description: "response",
+                props: response.args
+            }
+        })
+    })();
+
+    console.log("UI BLOCKS::", ui_blocks)
+
+    return ui_blocks
     
 }
