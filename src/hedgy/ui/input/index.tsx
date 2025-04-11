@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 import { Controller, useForm, FieldErrors } from "react-hook-form"
 import { useHedgyState } from "../context"
@@ -5,6 +6,7 @@ import {z} from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SendIcon, Loader2 } from "lucide-react"
 import { getCompletion } from "@/hedgy/agent/access-functions"
+import { ModelOutput } from "@/hedgy/v2/model"
 
 const promptSchema = z.object({
     prompt: z.string().min(1, "Please enter a message")
@@ -13,7 +15,7 @@ const promptSchema = z.object({
 type PromptSchema = z.infer<typeof promptSchema>
 
 export default function MessageInput(){
-    const {addMessage, setLoading, isLoading} = useHedgyState()
+    const { addMessage, setLoading, isLoading, messages } = useHedgyState()
 
     const form = useForm<PromptSchema>({
         resolver: zodResolver(promptSchema),
@@ -45,12 +47,20 @@ export default function MessageInput(){
         form.reset({ prompt: "" });
     
         try {
+            const valid_messages = messages?.map((message) => message.blocks)?.flat()?.filter((m) => m.name !== "PURCHASE_BUTTON")
+
+            const prepareMessageHistory = valid_messages.map((message) => {
+                return {
+                    answer: message.props.content ?? "",
+                    role: message.name == "USER_MESSAGE" ? "user" : "assistant",
+                } as ModelOutput
+            })
             const results = await getCompletion({
                 prompt: values.prompt
-            });
+            }, prepareMessageHistory ?? []);
     
             addMessage({
-                blocks: results,
+                blocks: results as any,
                 id: Date.now().toString()
             });
         }
