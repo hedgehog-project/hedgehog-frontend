@@ -26,9 +26,10 @@ export function PurchaseButton(props: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
-
-  const asset = assets.find((asset) => asset.name === assetName);
-
+  console.log("Asset Name::", assetName)
+  console.log("Assets", assets)
+  const asset = assets.find((asset) => asset.id === assetName.toLocaleLowerCase());
+  console.log("Found asset::", asset)
   const { data: assetPriceData } = useAssetPrice(asset?.contractAddress || "");
 
   
@@ -77,10 +78,11 @@ export function PurchaseButton(props: Props) {
       }
 
       try {
+        const asset = assets.find((asset) => asset.id === assetName.toLocaleLowerCase());
         const data = encodeFunctionData({
           abi: issuerABI.abi,
           functionName: 'grantKYC',
-          args: [assetName, address],
+          args: [asset?.name, address],
         });
 
         const tx = {
@@ -142,7 +144,7 @@ export function PurchaseButton(props: Props) {
       // Purchase transaction
       const purchaseHash = await writeContractAsync({
         ...contractConfig,
-        args: [assetName, BigInt(quantity)],
+        args: [asset?.name, BigInt(quantity)],
       });
 
       toast({
